@@ -75,7 +75,7 @@ param <- list()
 param$verbose <- TRUE  
 param$report.author <- "Paul Yousefi"
 param$report.study <- "pleural-dnam"
-# param$pc 
+param$pc <- 10
 
 ## ----samplesheet -------------------------------------------------------------
 meffil.samplesheet <- meffil.create.samplesheet(dir$data, recursive=TRUE)
