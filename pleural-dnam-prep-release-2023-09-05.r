@@ -201,7 +201,7 @@ sapply(
 ## ----norm -------------------------------------------------------------
 norm.objects <- meffil.normalize.quantiles(
     qc.objects,
-    number.pcs=pc, # set to 20 @top by visual inspection of pc plot
+    number.pcs=param$pc, # set to 20 @top by visual inspection of pc plot
     verbose = param$verbose)
 
 	norm.objects %>%
