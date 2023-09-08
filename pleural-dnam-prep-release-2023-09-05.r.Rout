@@ -1,0 +1,2792 @@
+
+R version 4.1.1 (2021-08-10) -- "Kick Things"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-conda-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> #mkdir betas control_matrix derived detection_p_values norm_objects qc_objects samplesheet
+> 
+> ## ----globals -------------------------------------------------------------
+> # conda activate alspac
+> # R CMD BATCH --vanilla 'pleural-dnam-prep-release-2023-09-05.r' &
+> ################################################################################
+> # File: pleural-dnam-prep-release-2023-09-05.r
+> # Purpose: 
+> #   
+> # Created: 
+> # Run on: epi-franklin
+> ################################################################################
+> packages <- c("tidyverse", "meffil", "readxl") 
+> lapply(packages, require, character.only=T)
+Loading required package: tidyverse
+── Attaching packages ─────────────────────────────────────── tidyverse 1.3.1 ──
+✔ ggplot2 3.3.5     ✔ purrr   0.3.4
+✔ tibble  3.1.6     ✔ dplyr   1.0.7
+✔ tidyr   1.1.4     ✔ stringr 1.4.0
+✔ readr   2.1.0     ✔ forcats 0.5.1
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+Loading required package: meffil
+Loading required package: illuminaio
+Loading required package: MASS
+
+Attaching package: ‘MASS’
+
+The following object is masked from ‘package:dplyr’:
+
+    select
+
+Loading required package: lmtest
+Loading required package: zoo
+
+Attaching package: ‘zoo’
+
+The following objects are masked from ‘package:base’:
+
+    as.Date, as.Date.numeric
+
+Loading required package: sandwich
+Loading required package: limma
+Loading required package: sva
+Loading required package: mgcv
+Loading required package: nlme
+
+Attaching package: ‘nlme’
+
+The following object is masked from ‘package:dplyr’:
+
+    collapse
+
+This is mgcv 1.8-38. For overview type 'help("mgcv-package")'.
+Loading required package: genefilter
+
+Attaching package: ‘genefilter’
+
+The following object is masked from ‘package:MASS’:
+
+    area
+
+The following object is masked from ‘package:readr’:
+
+    spec
+
+Loading required package: BiocParallel
+Loading required package: plyr
+------------------------------------------------------------------------------
+You have loaded plyr after dplyr - this is likely to cause problems.
+If you need functions from both plyr and dplyr, please load plyr first, then dplyr:
+library(plyr); library(dplyr)
+------------------------------------------------------------------------------
+
+Attaching package: ‘plyr’
+
+The following objects are masked from ‘package:dplyr’:
+
+    arrange, count, desc, failwith, id, mutate, rename, summarise,
+    summarize
+
+The following object is masked from ‘package:purrr’:
+
+    compact
+
+Loading required package: reshape2
+
+Attaching package: ‘reshape2’
+
+The following object is masked from ‘package:tidyr’:
+
+    smiths
+
+Loading required package: knitr
+Loading required package: Cairo
+Loading required package: gridExtra
+
+Attaching package: ‘gridExtra’
+
+The following object is masked from ‘package:dplyr’:
+
+    combine
+
+Loading required package: markdown
+Loading required package: matrixStats
+
+Attaching package: ‘matrixStats’
+
+The following object is masked from ‘package:plyr’:
+
+    count
+
+The following objects are masked from ‘package:genefilter’:
+
+    rowSds, rowVars
+
+The following object is masked from ‘package:dplyr’:
+
+    count
+
+Loading required package: multcomp
+Loading required package: mvtnorm
+Loading required package: survival
+Loading required package: TH.data
+
+Attaching package: ‘TH.data’
+
+The following object is masked from ‘package:MASS’:
+
+    geyser
+
+Loading required package: lme4
+Loading required package: Matrix
+
+Attaching package: ‘Matrix’
+
+The following objects are masked from ‘package:tidyr’:
+
+    expand, pack, unpack
+
+
+Attaching package: ‘lme4’
+
+The following object is masked from ‘package:nlme’:
+
+    lmList
+
+Loading required package: parallel
+Loading required package: fastICA
+Loading required package: DNAcopy
+Loading required package: quadprog
+Loading required package: statmod
+Loading required package: gdsfmt
+Loading required package: SmartSVA
+Loading required package: isva
+Loading required package: qvalue
+Loading required package: JADE
+Loading required package: RSpectra
+Loading required package: preprocessCore
+Loading required package: readxl
+[[1]]
+[1] TRUE
+
+[[2]]
+[1] TRUE
+
+[[3]]
+[1] TRUE
+
+> 
+> 
+> options(mc.cores=16)
+> packageVersion("meffil")
+[1] ‘1.3.6’
+> 
+> ## ----dirs -------------------------------------------------------------
+> dir <- list()
+> dir$project = '/projects/MRC-IEU/research/projects/ieu3/p4/004/working'
+> dir$data <- file.path(dir$project, 'data/pleural-dnam/raw')
+> dir$scripts <- file.path(dir$project, 'scripts/pleural-dnam')
+> dir$out <- file.path(dir$project, 'data/pleural-dnam/releases/2023-09-05')
+> dir$reports <- file.path(dir$scripts, 'reports')
+> 
+> lapply(dir, function(i) {
++ 	if (!dir.exists(i))
++ 		dir.create(i, recursive = T)
++ 	dir.exists(i)
++ 	}
++ )
+$project
+[1] TRUE
+
+$data
+[1] TRUE
+
+$scripts
+[1] TRUE
+
+$out
+[1] TRUE
+
+$reports
+[1] TRUE
+
+> 
+> ## ----files -------------------------------------------------------------
+> file <- list()
+> file$samplesheet <- file.path(dir$out, 
++ 						"samplesheet/pleural-dnam.samplesheet.csv")
+> 
+> file$qc <- file.path(dir$out, "qc_objects/pleural-dnam.qc.objects.rds")
+> 
+> file$qc.report <- file.path(dir$out, 
++ 					"derived/reports/qc/pleural-dnam.qc-report.html")
+> 
+> file$snp <- file.path(dir$out, "qc_snps/snp-names.txt")
+> 
+> file$detect.p <- file.path(dir$out, 
++ 					"detection_p_values/pleural-dnam.detection_p_values.rds")
+> 
+> file$pc.fit.plot <- file.path(dir$out, 
++ 					"derived/reports/qc/pleural-dnam.pc.fit.pdf")
+> 
+> file$norm <- file.path(dir$out, "norm_objects/pleural-dnam.norm.objects.rds")
+> 
+> file$betas <- file.path(dir$out, "betas/pleural-dnam.betas.rds")
+> 
+> file$norm.report <- 
++ 		file.path(dir$out, 
++ 			"derived/reports/normalization/pleural-dnam.normalization-report.html")
+> 
+> #file$cellcount <- 
+> 
+> # make all file directiories
+> file %>%
++ 	map(~ dirname(.x)) %>%
++ 	unique() %>%
++ 	map(~ {
++ 		if (!dir.exists(.x))
++ 			dir.create(.x, recursive = T)
++ 		dir.exists(.x)		
++ 	})
+[[1]]
+[1] TRUE
+
+[[2]]
+[1] TRUE
+
+[[3]]
+[1] TRUE
+
+[[4]]
+[1] TRUE
+
+[[5]]
+[1] TRUE
+
+[[6]]
+[1] TRUE
+
+[[7]]
+[1] TRUE
+
+[[8]]
+[1] TRUE
+
+> 
+> ## ----parameters -------------------------------------------------------------
+> param <- list()
+> param$verbose <- TRUE  
+> param$report.author <- "Paul Yousefi"
+> param$report.study <- "pleural-dnam"
+> param$pc <- 10
+> 
+> ## ----samplesheet -------------------------------------------------------------
+> meffil.samplesheet <- meffil.create.samplesheet(dir$data, recursive=TRUE)
+> bbl.samplesheet <- read_xlsx(file.path(dir$data, "Sentrix_link.xlsx"))
+> 
+> samplesheet <- meffil.samplesheet %>% 
++ 				inner_join(bbl.samplesheet, by = c("Sample_Name" = "sentrix")) 
+> 
+> samplesheet %>%
++ 	write_csv(file = file$samplesheet)
+> 
+> ## ----qc -------------------------------------------------------------
+> meffil.list.cell.type.references()
+ [1] "andrews and bakulski cord blood" "blood gse167998"                
+ [3] "blood gse35069"                  "blood gse35069 chen"            
+ [5] "blood gse35069 complete"         "blood idoloptimized"            
+ [7] "blood idoloptimized epic"        "combined cord blood"            
+ [9] "cord blood gse68456"             "gervin and lyle cord blood"     
+[11] "guintivano dlpfc"                "saliva gse48472"                
+> 
+> ##	 [1] "andrews and bakulski cord blood" "blood gse167998"
+> ##	 [3] "blood gse35069"                  "blood gse35069 chen"
+> ##	 [5] "blood gse35069 complete"         "blood idoloptimized"
+> ##	 [7] "blood idoloptimized epic"        "combined cord blood"
+> ##	 [9] "cord blood gse68456"             "gervin and lyle cord blood"
+> ##	[11] "guintivano dlpfc"                "saliva gse48472"
+> 
+> ## possible options:
+> 
+> ##	 [3] "blood gse35069" # Reinius        "blood gse35069 chen"
+> ##	 [5] "blood gse35069 complete"         "blood idoloptimized"
+> ##	 [7] "blood idoloptimized epic"     
+> 
+> qc.objects <- meffil.qc(samplesheet, 
++ 				cell.type.reference = NA, 
++ 				verbose = param$verbose)
+[read.idat] Fri Sep  8 11:50:55 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:50:57 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R01C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:50:59 2023  
+[extract.beadnum] Fri Sep  8 11:51:05 2023  
+[extract.snp.betas] Fri Sep  8 11:51:08 2023  
+[extract.controls] Fri Sep  8 11:51:08 2023  
+[background.correct] Fri Sep  8 11:51:10 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:51:12 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:51:15 2023  
+[FUN] Fri Sep  8 11:51:22 2023 predicting sex 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R02C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R04C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R03C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R05C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R06C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R07C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R08C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R02C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R01C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R03C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R04C01_Red.idat 
+[read.idat][read.idat]  Fri Sep  8 11:51:22 2023Fri Sep  8 11:51:22 2023  ReadingReading  /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R06C01_Red.idat/projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R05C01_Red.idat  
+
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R07C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R08C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R01C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:51:25 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:25 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:25 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:25 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:25 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:25 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:25 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:25 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:25 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:25 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:25 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:25 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:26 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:26 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:26 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:26 2023  
+[extract.beadnum] Fri Sep  8 11:51:30 2023  
+[extract.beadnum] Fri Sep  8 11:51:30 2023  
+[extract.beadnum] Fri Sep  8 11:51:30 2023  
+[extract.beadnum] Fri Sep  8 11:51:30 2023  
+[extract.beadnum] Fri Sep  8 11:51:30 2023  
+[extract.beadnum] Fri Sep  8 11:51:30 2023  
+[extract.beadnum] Fri Sep  8 11:51:31 2023  
+[extract.beadnum] Fri Sep  8 11:51:31 2023  
+[extract.beadnum] Fri Sep  8 11:51:31 2023  
+[extract.beadnum] Fri Sep  8 11:51:31 2023  
+[extract.beadnum] Fri Sep  8 11:51:31 2023  
+[extract.beadnum] Fri Sep  8 11:51:31 2023  
+[extract.beadnum] Fri Sep  8 11:51:31 2023  
+[extract.beadnum] Fri Sep  8 11:51:31 2023  
+[extract.beadnum] Fri Sep  8 11:51:31 2023  
+[extract.beadnum] Fri Sep  8 11:51:31 2023  
+[extract.snp.betas] Fri Sep  8 11:51:33 2023  
+[extract.snp.betas] Fri Sep  8 11:51:33 2023  
+[extract.snp.betas] Fri Sep  8 11:51:33 2023  
+[extract.snp.betas] Fri Sep  8 11:51:33 2023  
+[extract.controls] Fri Sep  8 11:51:34 2023  
+[extract.snp.betas] Fri Sep  8 11:51:34 2023  
+[extract.snp.betas] Fri Sep  8 11:51:34 2023  
+[extract.snp.betas] Fri Sep  8 11:51:34 2023  
+[extract.controls] Fri Sep  8 11:51:34 2023  
+[extract.controls] Fri Sep  8 11:51:34 2023  
+[extract.controls] Fri Sep  8 11:51:34 2023  
+[extract.controls] Fri Sep  8 11:51:34 2023  
+[extract.snp.betas] Fri Sep  8 11:51:34 2023  
+[extract.controls] Fri Sep  8 11:51:35 2023  
+[extract.controls] Fri Sep  8 11:51:35 2023  
+[extract.snp.betas] Fri Sep  8 11:51:35 2023  
+[extract.snp.betas] Fri Sep  8 11:51:35 2023  
+[extract.snp.betas] Fri Sep  8 11:51:35 2023  
+[extract.snp.betas] Fri Sep  8 11:51:35 2023  
+[extract.snp.betas] Fri Sep  8 11:51:35 2023  
+[background.correct] Fri Sep  8 11:51:35 2023 background correction for dye = R 
+[extract.snp.betas] Fri Sep  8 11:51:35 2023  
+[extract.controls] Fri Sep  8 11:51:35 2023  
+[extract.snp.betas] Fri Sep  8 11:51:35 2023  
+[extract.snp.betas] Fri Sep  8 11:51:35 2023  
+[extract.controls] Fri Sep  8 11:51:36 2023  
+[extract.controls] Fri Sep  8 11:51:36 2023  
+[extract.controls] Fri Sep  8 11:51:36 2023  
+[background.correct] Fri Sep  8 11:51:36 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:51:36 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:51:36 2023 background correction for dye = R 
+[extract.controls] Fri Sep  8 11:51:36 2023  
+[extract.controls] Fri Sep  8 11:51:36 2023  
+[extract.controls] Fri Sep  8 11:51:36 2023  
+[background.correct] Fri Sep  8 11:51:36 2023 background correction for dye = R 
+[extract.controls] Fri Sep  8 11:51:36 2023  
+[extract.controls] Fri Sep  8 11:51:36 2023  
+[background.correct] Fri Sep  8 11:51:36 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:51:36 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:51:37 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:51:37 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:51:37 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:51:37 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:51:38 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:51:38 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:51:38 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:51:38 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:51:38 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:51:38 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:51:38 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:51:38 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:51:38 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:51:38 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:51:38 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:51:39 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:51:39 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:51:39 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:51:39 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:51:39 2023  
+[background.correct] Fri Sep  8 11:51:40 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:51:40 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:51:40 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:51:40 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:51:40 2023  
+[dye.bias.correct] Fri Sep  8 11:51:40 2023  
+[background.correct] Fri Sep  8 11:51:40 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:51:40 2023  
+[background.correct] Fri Sep  8 11:51:40 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:51:40 2023  
+[dye.bias.correct] Fri Sep  8 11:51:41 2023  
+[dye.bias.correct] Fri Sep  8 11:51:41 2023  
+[dye.bias.correct] Fri Sep  8 11:51:41 2023  
+[dye.bias.correct] Fri Sep  8 11:51:42 2023  
+[dye.bias.correct] Fri Sep  8 11:51:42 2023  
+[dye.bias.correct] Fri Sep  8 11:51:42 2023  
+[dye.bias.correct] Fri Sep  8 11:51:42 2023  
+[dye.bias.correct] Fri Sep  8 11:51:42 2023  
+[dye.bias.correct] Fri Sep  8 11:51:42 2023  
+[dye.bias.correct] Fri Sep  8 11:51:43 2023  
+[dye.bias.correct] Fri Sep  8 11:51:43 2023  
+[FUN] Fri Sep  8 11:51:48 2023 predicting sex 
+[read.idat] Fri Sep  8 11:51:48 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:48 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R04C01_Red.idat 
+[FUN] Fri Sep  8 11:51:48 2023 predicting sex 
+[FUN] Fri Sep  8 11:51:48 2023 predicting sex 
+[read.idat] Fri Sep  8 11:51:48 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:48 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:48 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R02C01_Red.idat 
+[FUN] Fri Sep  8 11:51:48 2023 predicting sex 
+[FUN] Fri Sep  8 11:51:48 2023 predicting sex 
+[read.idat] Fri Sep  8 11:51:48 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R04C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:48 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:48 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:48 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R08C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:48 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R07C01_Red.idat 
+[FUN] Fri Sep  8 11:51:49 2023 predicting sex 
+[read.idat] Fri Sep  8 11:51:49 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:49 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R05C01_Red.idat 
+[FUN] Fri Sep  8 11:51:49 2023 predicting sex 
+[read.idat] Fri Sep  8 11:51:49 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:49 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R01C01_Red.idat 
+[FUN] Fri Sep  8 11:51:50 2023 predicting sex 
+[extract.detection.pvalues] Fri Sep  8 11:51:50 2023  
+[read.idat] Fri Sep  8 11:51:50 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:50 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R07C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:51:50 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:50 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:50 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:50 2023  
+[FUN] Fri Sep  8 11:51:50 2023 predicting sex 
+[FUN] Fri Sep  8 11:51:50 2023 predicting sex 
+[read.idat] Fri Sep  8 11:51:51 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:51 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R06C01_Grn.idat 
+[FUN] Fri Sep  8 11:51:51 2023 predicting sex 
+[read.idat] Fri Sep  8 11:51:51 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R06C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:51 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R08C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:51 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:51 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R03C01_Red.idat 
+[FUN] Fri Sep  8 11:51:51 2023 predicting sex 
+[FUN] Fri Sep  8 11:51:51 2023 predicting sex 
+[FUN] Fri Sep  8 11:51:51 2023 predicting sex 
+[read.idat] Fri Sep  8 11:51:51 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R05C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:51:51 2023  
+[read.idat] Fri Sep  8 11:51:51 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:51 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:51 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R05C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:51 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R02C01_Red.idat 
+[read.idat] Fri Sep  8 11:51:51 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R03C01_Red.idat 
+[FUN] Fri Sep  8 11:51:51 2023 predicting sex 
+[read.idat] Fri Sep  8 11:51:51 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:51:51 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R01C01_Red.idat 
+[FUN] Fri Sep  8 11:51:52 2023 predicting sex 
+[read.idat] Fri Sep  8 11:51:52 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R06C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:51:52 2023  
+[read.idat] Fri Sep  8 11:51:52 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R06C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:51:52 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:53 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:53 2023  
+[extract.beadnum] Fri Sep  8 11:51:53 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:53 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:53 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:53 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:53 2023  
+[extract.beadnum] Fri Sep  8 11:51:53 2023  
+[extract.beadnum] Fri Sep  8 11:51:53 2023  
+[extract.beadnum] Fri Sep  8 11:51:54 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:54 2023  
+[extract.detection.pvalues] Fri Sep  8 11:51:54 2023  
+[extract.beadnum] Fri Sep  8 11:51:55 2023  
+[extract.beadnum] Fri Sep  8 11:51:55 2023  
+[extract.beadnum] Fri Sep  8 11:51:55 2023  
+[extract.snp.betas] Fri Sep  8 11:51:56 2023  
+[extract.snp.betas] Fri Sep  8 11:51:56 2023  
+[extract.snp.betas] Fri Sep  8 11:51:56 2023  
+[extract.beadnum] Fri Sep  8 11:51:56 2023  
+[extract.beadnum] Fri Sep  8 11:51:56 2023  
+[extract.snp.betas] Fri Sep  8 11:51:56 2023  
+[extract.beadnum] Fri Sep  8 11:51:56 2023  
+[extract.controls] Fri Sep  8 11:51:57 2023  
+[extract.beadnum] Fri Sep  8 11:51:57 2023  
+[extract.beadnum] Fri Sep  8 11:51:57 2023  
+[extract.beadnum] Fri Sep  8 11:51:57 2023  
+[extract.beadnum] Fri Sep  8 11:51:57 2023  
+[extract.controls] Fri Sep  8 11:51:57 2023  
+[extract.controls] Fri Sep  8 11:51:57 2023  
+[extract.controls] Fri Sep  8 11:51:57 2023  
+[extract.snp.betas] Fri Sep  8 11:51:57 2023  
+[extract.beadnum] Fri Sep  8 11:51:58 2023  
+[extract.controls] Fri Sep  8 11:51:58 2023  
+[extract.beadnum] Fri Sep  8 11:51:58 2023  
+[extract.snp.betas] Fri Sep  8 11:51:58 2023  
+[extract.snp.betas] Fri Sep  8 11:51:59 2023  
+[extract.controls] Fri Sep  8 11:51:59 2023  
+[background.correct] Fri Sep  8 11:51:59 2023 background correction for dye = R 
+[extract.controls] Fri Sep  8 11:51:59 2023  
+[background.correct] Fri Sep  8 11:51:59 2023 background correction for dye = R 
+[extract.snp.betas] Fri Sep  8 11:51:59 2023  
+[extract.snp.betas] Fri Sep  8 11:51:59 2023  
+[extract.snp.betas] Fri Sep  8 11:52:00 2023  
+[extract.snp.betas] Fri Sep  8 11:52:00 2023  
+[extract.snp.betas] Fri Sep  8 11:52:00 2023  
+[extract.snp.betas] Fri Sep  8 11:52:00 2023  
+[extract.snp.betas] Fri Sep  8 11:52:00 2023  
+[background.correct] Fri Sep  8 11:52:00 2023 background correction for dye = R 
+[extract.controls] Fri Sep  8 11:52:00 2023  
+[extract.controls] Fri Sep  8 11:52:00 2023  
+[extract.controls] Fri Sep  8 11:52:00 2023  
+[extract.controls] Fri Sep  8 11:52:00 2023  
+[extract.controls] Fri Sep  8 11:52:01 2023  
+[extract.controls] Fri Sep  8 11:52:01 2023  
+[extract.controls] Fri Sep  8 11:52:01 2023  
+[extract.snp.betas] Fri Sep  8 11:52:01 2023  
+[background.correct] Fri Sep  8 11:52:01 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:01 2023 background correction for dye = G 
+[extract.snp.betas] Fri Sep  8 11:52:01 2023  
+[background.correct] Fri Sep  8 11:52:01 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:01 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:01 2023 background correction for dye = R 
+[extract.controls] Fri Sep  8 11:52:02 2023  
+[background.correct] Fri Sep  8 11:52:02 2023 background correction for dye = G 
+[extract.controls] Fri Sep  8 11:52:02 2023  
+[background.correct] Fri Sep  8 11:52:02 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:02 2023 background correction for dye = R 
+[dye.bias.correct] Fri Sep  8 11:52:03 2023  
+[background.correct] Fri Sep  8 11:52:03 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:03 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:03 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:03 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:03 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:03 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:03 2023 background correction for dye = R 
+[dye.bias.correct] Fri Sep  8 11:52:03 2023  
+[background.correct] Fri Sep  8 11:52:04 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:04 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:04 2023 background correction for dye = R 
+[dye.bias.correct] Fri Sep  8 11:52:04 2023  
+[background.correct] Fri Sep  8 11:52:04 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:04 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:05 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:05 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:05 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:05 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:52:05 2023  
+[background.correct] Fri Sep  8 11:52:05 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:05 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:52:05 2023  
+[background.correct] Fri Sep  8 11:52:05 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:05 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:52:06 2023  
+[dye.bias.correct] Fri Sep  8 11:52:06 2023  
+[dye.bias.correct] Fri Sep  8 11:52:06 2023  
+[background.correct] Fri Sep  8 11:52:07 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:52:07 2023  
+[dye.bias.correct] Fri Sep  8 11:52:07 2023  
+[dye.bias.correct] Fri Sep  8 11:52:07 2023  
+[dye.bias.correct] Fri Sep  8 11:52:07 2023  
+[dye.bias.correct] Fri Sep  8 11:52:08 2023  
+[dye.bias.correct] Fri Sep  8 11:52:08 2023  
+[dye.bias.correct] Fri Sep  8 11:52:08 2023  
+[dye.bias.correct] Fri Sep  8 11:52:09 2023  
+[FUN] Fri Sep  8 11:52:09 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:09 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:09 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R04C01_Red.idat 
+[FUN] Fri Sep  8 11:52:10 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:10 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:10 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R04C01_Red.idat 
+[FUN] Fri Sep  8 11:52:11 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:11 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:11 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R07C01_Red.idat 
+[FUN] Fri Sep  8 11:52:11 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:11 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R08C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:52:11 2023  
+[FUN] Fri Sep  8 11:52:11 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:11 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:11 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R08C01_Red.idat 
+[read.idat] Fri Sep  8 11:52:12 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R02C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:52:12 2023  
+[FUN] Fri Sep  8 11:52:12 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:12 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:13 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R01C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:52:13 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:13 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:14 2023  
+[FUN] Fri Sep  8 11:52:14 2023 predicting sex 
+[FUN] Fri Sep  8 11:52:14 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R08C01_Grn.idat 
+[FUN] Fri Sep  8 11:52:14 2023 predicting sex 
+[FUN] Fri Sep  8 11:52:14 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R08C01_Red.idat 
+[read.idat] Fri Sep  8 11:52:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R05C01_Red.idat 
+[read.idat] Fri Sep  8 11:52:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R03C01_Red.idat 
+[FUN] Fri Sep  8 11:52:14 2023 predicting sex 
+[FUN] Fri Sep  8 11:52:14 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R06C01_Red.idat 
+[read.idat] Fri Sep  8 11:52:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R03C01_Grn.idat 
+[FUN] Fri Sep  8 11:52:14 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R03C01_Red.idat 
+[FUN] Fri Sep  8 11:52:15 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:15 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R02C01_Red.idat 
+[read.idat] Fri Sep  8 11:52:15 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R07C01_Red.idat 
+[extract.beadnum] Fri Sep  8 11:52:15 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:15 2023  
+[read.idat] Fri Sep  8 11:52:15 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:15 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R05C01_Red.idat 
+[FUN] Fri Sep  8 11:52:15 2023 predicting sex 
+[FUN] Fri Sep  8 11:52:15 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:15 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:15 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:16 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R06C01_Red.idat 
+[extract.beadnum] Fri Sep  8 11:52:16 2023  
+[read.idat] Fri Sep  8 11:52:16 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R01C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:52:16 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:16 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:16 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:16 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:16 2023  
+[extract.beadnum] Fri Sep  8 11:52:17 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:17 2023  
+[extract.beadnum] Fri Sep  8 11:52:17 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:17 2023  
+[extract.beadnum] Fri Sep  8 11:52:17 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:18 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:18 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:18 2023  
+[extract.beadnum] Fri Sep  8 11:52:18 2023  
+[extract.snp.betas] Fri Sep  8 11:52:19 2023  
+[extract.controls] Fri Sep  8 11:52:19 2023  
+[extract.snp.betas] Fri Sep  8 11:52:19 2023  
+[extract.snp.betas] Fri Sep  8 11:52:20 2023  
+[extract.beadnum] Fri Sep  8 11:52:20 2023  
+[extract.beadnum] Fri Sep  8 11:52:20 2023  
+[extract.beadnum] Fri Sep  8 11:52:20 2023  
+[extract.snp.betas] Fri Sep  8 11:52:20 2023  
+[extract.controls] Fri Sep  8 11:52:20 2023  
+[extract.controls] Fri Sep  8 11:52:20 2023  
+[extract.snp.betas] Fri Sep  8 11:52:20 2023  
+[extract.beadnum] Fri Sep  8 11:52:20 2023  
+[extract.beadnum] Fri Sep  8 11:52:20 2023  
+[extract.controls] Fri Sep  8 11:52:20 2023  
+[background.correct] Fri Sep  8 11:52:21 2023 background correction for dye = R 
+[extract.controls] Fri Sep  8 11:52:21 2023  
+[extract.beadnum] Fri Sep  8 11:52:21 2023  
+[extract.beadnum] Fri Sep  8 11:52:21 2023  
+[extract.snp.betas] Fri Sep  8 11:52:21 2023  
+[background.correct] Fri Sep  8 11:52:22 2023 background correction for dye = R 
+[extract.beadnum] Fri Sep  8 11:52:22 2023  
+[extract.controls] Fri Sep  8 11:52:22 2023  
+[extract.beadnum] Fri Sep  8 11:52:22 2023  
+[background.correct] Fri Sep  8 11:52:22 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:22 2023 background correction for dye = R 
+[extract.beadnum] Fri Sep  8 11:52:23 2023  
+[extract.snp.betas] Fri Sep  8 11:52:23 2023  
+[background.correct] Fri Sep  8 11:52:23 2023 background correction for dye = R 
+[extract.snp.betas] Fri Sep  8 11:52:23 2023  
+[background.correct] Fri Sep  8 11:52:23 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:23 2023 background correction for dye = G 
+[extract.snp.betas] Fri Sep  8 11:52:23 2023  
+[extract.controls] Fri Sep  8 11:52:23 2023  
+[extract.controls] Fri Sep  8 11:52:23 2023  
+[extract.controls] Fri Sep  8 11:52:24 2023  
+[extract.snp.betas] Fri Sep  8 11:52:24 2023  
+[background.correct] Fri Sep  8 11:52:24 2023 background correction for dye = G 
+[extract.snp.betas] Fri Sep  8 11:52:24 2023  
+[extract.controls] Fri Sep  8 11:52:24 2023  
+[dye.bias.correct] Fri Sep  8 11:52:25 2023  
+[extract.snp.betas] Fri Sep  8 11:52:25 2023  
+[background.correct] Fri Sep  8 11:52:25 2023 background correction for dye = G 
+[extract.snp.betas] Fri Sep  8 11:52:25 2023  
+[background.correct] Fri Sep  8 11:52:25 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:25 2023 background correction for dye = G 
+[extract.controls] Fri Sep  8 11:52:25 2023  
+[extract.controls] Fri Sep  8 11:52:25 2023  
+[extract.snp.betas] Fri Sep  8 11:52:25 2023  
+[dye.bias.correct] Fri Sep  8 11:52:25 2023  
+[extract.controls] Fri Sep  8 11:52:25 2023  
+[extract.snp.betas] Fri Sep  8 11:52:26 2023  
+[extract.snp.betas] Fri Sep  8 11:52:26 2023  
+[extract.controls] Fri Sep  8 11:52:26 2023  
+[extract.controls] Fri Sep  8 11:52:26 2023  
+[background.correct] Fri Sep  8 11:52:26 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:26 2023 background correction for dye = R 
+[extract.controls] Fri Sep  8 11:52:26 2023  
+[dye.bias.correct] Fri Sep  8 11:52:26 2023  
+[background.correct] Fri Sep  8 11:52:26 2023 background correction for dye = R 
+[dye.bias.correct] Fri Sep  8 11:52:27 2023  
+[background.correct] Fri Sep  8 11:52:27 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:27 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:52:27 2023  
+[background.correct] Fri Sep  8 11:52:27 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:27 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:27 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:28 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:28 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:28 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:28 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:28 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:28 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:29 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:29 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:29 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:52:29 2023  
+[background.correct] Fri Sep  8 11:52:29 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:29 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:30 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:30 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:52:30 2023  
+[dye.bias.correct] Fri Sep  8 11:52:30 2023  
+[dye.bias.correct] Fri Sep  8 11:52:30 2023  
+[FUN] Fri Sep  8 11:52:31 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:31 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R04C01_Grn.idat 
+[dye.bias.correct] Fri Sep  8 11:52:31 2023  
+[dye.bias.correct] Fri Sep  8 11:52:31 2023  
+[dye.bias.correct] Fri Sep  8 11:52:31 2023  
+[read.idat] Fri Sep  8 11:52:31 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R04C01_Red.idat 
+[dye.bias.correct] Fri Sep  8 11:52:31 2023  
+[FUN] Fri Sep  8 11:52:32 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R04C01_Red.idat 
+[dye.bias.correct] Fri Sep  8 11:52:32 2023  
+[dye.bias.correct] Fri Sep  8 11:52:32 2023  
+[dye.bias.correct] Fri Sep  8 11:52:32 2023  
+[FUN] Fri Sep  8 11:52:33 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:33 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:33 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R07C01_Red.idat 
+[FUN] Fri Sep  8 11:52:34 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:34 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:34 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R08C01_Red.idat 
+[FUN] Fri Sep  8 11:52:34 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:34 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R02C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:52:34 2023  
+[read.idat] Fri Sep  8 11:52:34 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R02C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:52:35 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:36 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:37 2023  
+[FUN] Fri Sep  8 11:52:37 2023 predicting sex 
+[extract.detection.pvalues] Fri Sep  8 11:52:37 2023  
+[read.idat] Fri Sep  8 11:52:37 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R01C01_Grn.idat 
+[FUN] Fri Sep  8 11:52:37 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:37 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R01C01_Red.idat 
+[read.idat] Fri Sep  8 11:52:37 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R05C01_Grn.idat 
+[FUN] Fri Sep  8 11:52:37 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:37 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:37 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R05C01_Red.idat 
+[extract.beadnum] Fri Sep  8 11:52:37 2023  
+[read.idat] Fri Sep  8 11:52:38 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R03C01_Red.idat 
+[FUN] Fri Sep  8 11:52:38 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:38 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:38 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R02C01_Red.idat 
+[FUN] Fri Sep  8 11:52:38 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:38 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R06C01_Grn.idat 
+[FUN] Fri Sep  8 11:52:38 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:38 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R06C01_Red.idat 
+[read.idat] Fri Sep  8 11:52:38 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R08C01_Grn.idat 
+[extract.beadnum] Fri Sep  8 11:52:38 2023  
+[read.idat] Fri Sep  8 11:52:38 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R08C01_Red.idat 
+[FUN] Fri Sep  8 11:52:39 2023 predicting sex 
+[FUN] Fri Sep  8 11:52:39 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:39 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:39 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R07C01_Grn.idat 
+[FUN] Fri Sep  8 11:52:39 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:39 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R05C01_Red.idat 
+[read.idat] Fri Sep  8 11:52:39 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R07C01_Red.idat 
+[read.idat] Fri Sep  8 11:52:39 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:39 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R06C01_Red.idat 
+[FUN] Fri Sep  8 11:52:39 2023 predicting sex 
+[FUN] Fri Sep  8 11:52:39 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:39 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R01C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:52:39 2023  
+[read.idat] Fri Sep  8 11:52:39 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:39 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R01C01_Red.idat 
+[read.idat] Fri Sep  8 11:52:39 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R03C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:52:39 2023  
+[extract.beadnum] Fri Sep  8 11:52:40 2023  
+[extract.beadnum] Fri Sep  8 11:52:40 2023  
+[extract.snp.betas] Fri Sep  8 11:52:40 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:40 2023  
+[extract.beadnum] Fri Sep  8 11:52:40 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:40 2023  
+[extract.controls] Fri Sep  8 11:52:41 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:41 2023  
+[extract.snp.betas] Fri Sep  8 11:52:41 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:41 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:41 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:41 2023  
+[extract.controls] Fri Sep  8 11:52:42 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:42 2023  
+[background.correct] Fri Sep  8 11:52:42 2023 background correction for dye = R 
+[extract.snp.betas] Fri Sep  8 11:52:42 2023  
+[extract.beadnum] Fri Sep  8 11:52:42 2023  
+[extract.beadnum] Fri Sep  8 11:52:42 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:42 2023  
+[extract.snp.betas] Fri Sep  8 11:52:43 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:43 2023  
+[extract.controls] Fri Sep  8 11:52:43 2023  
+[background.correct] Fri Sep  8 11:52:43 2023 background correction for dye = R 
+[extract.snp.betas] Fri Sep  8 11:52:43 2023  
+[extract.controls] Fri Sep  8 11:52:43 2023  
+[extract.controls] Fri Sep  8 11:52:43 2023  
+[extract.beadnum] Fri Sep  8 11:52:44 2023  
+[extract.beadnum] Fri Sep  8 11:52:44 2023  
+[background.correct] Fri Sep  8 11:52:44 2023 background correction for dye = G 
+[extract.beadnum] Fri Sep  8 11:52:44 2023  
+[extract.beadnum] Fri Sep  8 11:52:44 2023  
+[background.correct] Fri Sep  8 11:52:44 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:45 2023 background correction for dye = G 
+[extract.beadnum] Fri Sep  8 11:52:45 2023  
+[extract.snp.betas] Fri Sep  8 11:52:45 2023  
+[background.correct] Fri Sep  8 11:52:45 2023 background correction for dye = R 
+[extract.snp.betas] Fri Sep  8 11:52:45 2023  
+[extract.beadnum] Fri Sep  8 11:52:46 2023  
+[extract.beadnum] Fri Sep  8 11:52:46 2023  
+[extract.beadnum] Fri Sep  8 11:52:46 2023  
+[extract.beadnum] Fri Sep  8 11:52:46 2023  
+[extract.controls] Fri Sep  8 11:52:46 2023  
+[dye.bias.correct] Fri Sep  8 11:52:46 2023  
+[extract.controls] Fri Sep  8 11:52:46 2023  
+[background.correct] Fri Sep  8 11:52:46 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:46 2023 background correction for dye = G 
+[extract.snp.betas] Fri Sep  8 11:52:46 2023  
+[extract.snp.betas] Fri Sep  8 11:52:47 2023  
+[extract.snp.betas] Fri Sep  8 11:52:47 2023  
+[background.correct] Fri Sep  8 11:52:47 2023 background correction for dye = G 
+[extract.snp.betas] Fri Sep  8 11:52:47 2023  
+[dye.bias.correct] Fri Sep  8 11:52:47 2023  
+[extract.controls] Fri Sep  8 11:52:47 2023  
+[extract.controls] Fri Sep  8 11:52:47 2023  
+[extract.controls] Fri Sep  8 11:52:48 2023  
+[background.correct] Fri Sep  8 11:52:48 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:48 2023 background correction for dye = R 
+[extract.snp.betas] Fri Sep  8 11:52:48 2023  
+[extract.controls] Fri Sep  8 11:52:48 2023  
+[extract.snp.betas] Fri Sep  8 11:52:48 2023  
+[extract.snp.betas] Fri Sep  8 11:52:48 2023  
+[dye.bias.correct] Fri Sep  8 11:52:48 2023  
+[extract.controls] Fri Sep  8 11:52:48 2023  
+[extract.snp.betas] Fri Sep  8 11:52:48 2023  
+[extract.snp.betas] Fri Sep  8 11:52:49 2023  
+[background.correct] Fri Sep  8 11:52:49 2023 background correction for dye = R 
+[dye.bias.correct] Fri Sep  8 11:52:49 2023  
+[background.correct] Fri Sep  8 11:52:49 2023 background correction for dye = R 
+[extract.controls] Fri Sep  8 11:52:49 2023  
+[extract.controls] Fri Sep  8 11:52:49 2023  
+[extract.controls] Fri Sep  8 11:52:49 2023  
+[extract.controls] Fri Sep  8 11:52:49 2023  
+[background.correct] Fri Sep  8 11:52:50 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:52:50 2023  
+[background.correct] Fri Sep  8 11:52:50 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:50 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:50 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:51 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:51 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:51 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:51 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:51 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:51 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:51 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:52:52 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:52 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:52 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:52 2023 background correction for dye = G 
+[FUN] Fri Sep  8 11:52:52 2023 predicting sex 
+[background.correct] Fri Sep  8 11:52:53 2023 background correction for dye = G 
+[read.idat] Fri Sep  8 11:52:53 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:53 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R04C01_Red.idat 
+[background.correct] Fri Sep  8 11:52:53 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:52:53 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:52:53 2023  
+[background.correct] Fri Sep  8 11:52:53 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:52:53 2023  
+[dye.bias.correct] Fri Sep  8 11:52:53 2023  
+[FUN] Fri Sep  8 11:52:53 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:53 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:53 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R04C01_Red.idat 
+[dye.bias.correct] Fri Sep  8 11:52:54 2023  
+[dye.bias.correct] Fri Sep  8 11:52:54 2023  
+[FUN] Fri Sep  8 11:52:54 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:54 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R07C01_Grn.idat 
+[dye.bias.correct] Fri Sep  8 11:52:54 2023  
+[read.idat] Fri Sep  8 11:52:54 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R07C01_Red.idat 
+[dye.bias.correct] Fri Sep  8 11:52:55 2023  
+[dye.bias.correct] Fri Sep  8 11:52:55 2023  
+[dye.bias.correct] Fri Sep  8 11:52:55 2023  
+[dye.bias.correct] Fri Sep  8 11:52:55 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:55 2023  
+[dye.bias.correct] Fri Sep  8 11:52:55 2023  
+[FUN] Fri Sep  8 11:52:56 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:56 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:52:56 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R08C01_Red.idat 
+[FUN] Fri Sep  8 11:52:56 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:56 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R02C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:52:56 2023  
+[read.idat] Fri Sep  8 11:52:56 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R02C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:52:57 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:58 2023  
+[extract.detection.pvalues] Fri Sep  8 11:52:58 2023  
+[extract.beadnum] Fri Sep  8 11:52:58 2023  
+[FUN] Fri Sep  8 11:52:59 2023 predicting sex 
+[read.idat] Fri Sep  8 11:52:59 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R05C01_Grn.idat 
+[extract.beadnum] Fri Sep  8 11:52:59 2023  
+[read.idat] Fri Sep  8 11:52:59 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R05C01_Red.idat 
+[extract.beadnum] Fri Sep  8 11:53:00 2023  
+[FUN] Fri Sep  8 11:53:00 2023 predicting sex 
+[FUN] Fri Sep  8 11:53:00 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:00 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:00 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R01C01_Red.idat 
+[read.idat] Fri Sep  8 11:53:00 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:00 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R03C01_Red.idat 
+[FUN] Fri Sep  8 11:53:01 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:01 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:01 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R06C01_Red.idat 
+[extract.snp.betas] Fri Sep  8 11:53:01 2023  
+[FUN] Fri Sep  8 11:53:01 2023 predicting sex 
+[FUN] Fri Sep  8 11:53:01 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:01 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:01 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R02C01_Red.idat 
+[extract.snp.betas] Fri Sep  8 11:53:01 2023  
+[FUN] Fri Sep  8 11:53:02 2023 predicting sex 
+[FUN] Fri Sep  8 11:53:02 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:02 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:02 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:02 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R01C01_Grn.idat 
+[FUN] Fri Sep  8 11:53:02 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:02 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R05C01_Red.idat 
+[read.idat] Fri Sep  8 11:53:02 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R08C01_Red.idat 
+[read.idat] Fri Sep  8 11:53:02 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R01C01_Red.idat 
+[read.idat] Fri Sep  8 11:53:02 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R03C01_Grn.idat 
+[extract.controls] Fri Sep  8 11:53:02 2023  
+[FUN] Fri Sep  8 11:53:02 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:02 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:02 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R03C01_Red.idat 
+[FUN] Fri Sep  8 11:53:02 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:02 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R06C01_Red.idat 
+[read.idat] Fri Sep  8 11:53:02 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R07C01_Grn.idat 
+[extract.controls] Fri Sep  8 11:53:02 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:02 2023  
+[read.idat] Fri Sep  8 11:53:02 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R07C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:53:02 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:02 2023  
+[extract.beadnum] Fri Sep  8 11:53:03 2023  
+[extract.beadnum] Fri Sep  8 11:53:03 2023  
+[background.correct] Fri Sep  8 11:53:03 2023 background correction for dye = R 
+[extract.detection.pvalues] Fri Sep  8 11:53:03 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:04 2023  
+[extract.snp.betas] Fri Sep  8 11:53:04 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:04 2023  
+[background.correct] Fri Sep  8 11:53:04 2023 background correction for dye = R 
+[extract.detection.pvalues] Fri Sep  8 11:53:04 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:04 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:04 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:04 2023  
+[extract.controls] Fri Sep  8 11:53:04 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:04 2023  
+[extract.beadnum] Fri Sep  8 11:53:05 2023  
+[background.correct] Fri Sep  8 11:53:05 2023 background correction for dye = G 
+[extract.beadnum] Fri Sep  8 11:53:05 2023  
+[extract.snp.betas] Fri Sep  8 11:53:05 2023  
+[background.correct] Fri Sep  8 11:53:06 2023 background correction for dye = R 
+[extract.controls] Fri Sep  8 11:53:06 2023  
+[extract.snp.betas] Fri Sep  8 11:53:06 2023  
+[extract.controls] Fri Sep  8 11:53:07 2023  
+[background.correct] Fri Sep  8 11:53:07 2023 background correction for dye = G 
+[extract.beadnum] Fri Sep  8 11:53:07 2023  
+[extract.beadnum] Fri Sep  8 11:53:07 2023  
+[extract.beadnum] Fri Sep  8 11:53:07 2023  
+[dye.bias.correct] Fri Sep  8 11:53:07 2023  
+[extract.beadnum] Fri Sep  8 11:53:07 2023  
+[background.correct] Fri Sep  8 11:53:08 2023 background correction for dye = R 
+[extract.beadnum] Fri Sep  8 11:53:08 2023  
+[background.correct] Fri Sep  8 11:53:08 2023 background correction for dye = G 
+[extract.snp.betas] Fri Sep  8 11:53:08 2023  
+[extract.beadnum] Fri Sep  8 11:53:08 2023  
+[extract.beadnum] Fri Sep  8 11:53:08 2023  
+[extract.snp.betas] Fri Sep  8 11:53:08 2023  
+[background.correct] Fri Sep  8 11:53:08 2023 background correction for dye = R 
+[extract.controls] Fri Sep  8 11:53:08 2023  
+[extract.beadnum] Fri Sep  8 11:53:09 2023  
+[extract.controls] Fri Sep  8 11:53:09 2023  
+[extract.beadnum] Fri Sep  8 11:53:09 2023  
+[background.correct] Fri Sep  8 11:53:09 2023 background correction for dye = G 
+[extract.snp.betas] Fri Sep  8 11:53:10 2023  
+[dye.bias.correct] Fri Sep  8 11:53:10 2023  
+[background.correct] Fri Sep  8 11:53:10 2023 background correction for dye = R 
+[extract.snp.betas] Fri Sep  8 11:53:10 2023  
+[dye.bias.correct] Fri Sep  8 11:53:10 2023  
+[background.correct] Fri Sep  8 11:53:10 2023 background correction for dye = G 
+[extract.controls] Fri Sep  8 11:53:10 2023  
+[extract.snp.betas] Fri Sep  8 11:53:10 2023  
+[extract.controls] Fri Sep  8 11:53:11 2023  
+[extract.snp.betas] Fri Sep  8 11:53:11 2023  
+[extract.snp.betas] Fri Sep  8 11:53:11 2023  
+[background.correct] Fri Sep  8 11:53:11 2023 background correction for dye = R 
+[extract.controls] Fri Sep  8 11:53:11 2023  
+[extract.snp.betas] Fri Sep  8 11:53:11 2023  
+[extract.controls] Fri Sep  8 11:53:11 2023  
+[extract.controls] Fri Sep  8 11:53:11 2023  
+[extract.snp.betas] Fri Sep  8 11:53:11 2023  
+[extract.controls] Fri Sep  8 11:53:12 2023  
+[background.correct] Fri Sep  8 11:53:12 2023 background correction for dye = G 
+[extract.snp.betas] Fri Sep  8 11:53:12 2023  
+[background.correct] Fri Sep  8 11:53:12 2023 background correction for dye = R 
+[extract.controls] Fri Sep  8 11:53:12 2023  
+[extract.snp.betas] Fri Sep  8 11:53:12 2023  
+[dye.bias.correct] Fri Sep  8 11:53:12 2023  
+[extract.controls] Fri Sep  8 11:53:12 2023  
+[background.correct] Fri Sep  8 11:53:12 2023 background correction for dye = R 
+[extract.controls] Fri Sep  8 11:53:13 2023  
+[dye.bias.correct] Fri Sep  8 11:53:13 2023  
+[background.correct] Fri Sep  8 11:53:13 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:53:13 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:53:13 2023 background correction for dye = R 
+[dye.bias.correct] Fri Sep  8 11:53:14 2023  
+[background.correct] Fri Sep  8 11:53:14 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:53:14 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:53:14 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:53:14 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:53:14 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:53:14 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:53:14 2023 background correction for dye = R 
+[FUN] Fri Sep  8 11:53:15 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:15 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:15 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R04C01_Red.idat 
+[background.correct] Fri Sep  8 11:53:15 2023 background correction for dye = G 
+[FUN] Fri Sep  8 11:53:16 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:16 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R07C01_Grn.idat 
+[background.correct] Fri Sep  8 11:53:16 2023 background correction for dye = G 
+[read.idat] Fri Sep  8 11:53:16 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R07C01_Red.idat 
+[FUN] Fri Sep  8 11:53:16 2023 predicting sex 
+[background.correct] Fri Sep  8 11:53:16 2023 background correction for dye = G 
+[read.idat] Fri Sep  8 11:53:16 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:16 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R04C01_Red.idat 
+[dye.bias.correct] Fri Sep  8 11:53:16 2023  
+[background.correct] Fri Sep  8 11:53:16 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:53:16 2023  
+[background.correct] Fri Sep  8 11:53:17 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:53:17 2023 background correction for dye = G 
+[extract.detection.pvalues] Fri Sep  8 11:53:17 2023  
+[background.correct] Fri Sep  8 11:53:17 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:53:18 2023  
+[dye.bias.correct] Fri Sep  8 11:53:18 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:18 2023  
+[dye.bias.correct] Fri Sep  8 11:53:18 2023  
+[dye.bias.correct] Fri Sep  8 11:53:18 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:18 2023  
+[dye.bias.correct] Fri Sep  8 11:53:18 2023  
+[FUN] Fri Sep  8 11:53:18 2023 predicting sex 
+[dye.bias.correct] Fri Sep  8 11:53:19 2023  
+[dye.bias.correct] Fri Sep  8 11:53:19 2023  
+[read.idat] Fri Sep  8 11:53:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R02C01_Red.idat 
+[FUN] Fri Sep  8 11:53:19 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R08C01_Red.idat 
+[dye.bias.correct] Fri Sep  8 11:53:20 2023  
+[FUN] Fri Sep  8 11:53:20 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:20 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:20 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R05C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:53:21 2023  
+[extract.beadnum] Fri Sep  8 11:53:21 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:21 2023  
+[extract.beadnum] Fri Sep  8 11:53:21 2023  
+[extract.beadnum] Fri Sep  8 11:53:21 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:22 2023  
+[FUN] Fri Sep  8 11:53:23 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R03C01_Red.idat 
+[FUN] Fri Sep  8 11:53:23 2023 predicting sex 
+[extract.snp.betas] Fri Sep  8 11:53:24 2023  
+[extract.beadnum] Fri Sep  8 11:53:24 2023  
+[FUN] Fri Sep  8 11:53:24 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:24 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R01C01_Grn.idat 
+[extract.snp.betas] Fri Sep  8 11:53:24 2023  
+[read.idat] Fri Sep  8 11:53:24 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R01C01_Red.idat 
+[extract.controls] Fri Sep  8 11:53:24 2023  
+[extract.beadnum] Fri Sep  8 11:53:24 2023  
+[extract.snp.betas] Fri Sep  8 11:53:24 2023  
+[FUN] Fri Sep  8 11:53:24 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:25 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:25 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R05C01_Red.idat 
+[extract.controls] Fri Sep  8 11:53:25 2023  
+[FUN] Fri Sep  8 11:53:25 2023 predicting sex 
+[extract.controls] Fri Sep  8 11:53:25 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:25 2023  
+[read.idat] Fri Sep  8 11:53:25 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R06C01_Grn.idat 
+[FUN] Fri Sep  8 11:53:25 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:25 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R06C01_Red.idat 
+[FUN] Fri Sep  8 11:53:25 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:25 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R08C01_Grn.idat 
+[FUN] Fri Sep  8 11:53:25 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:25 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R03C01_Grn.idat 
+[FUN] Fri Sep  8 11:53:25 2023 predicting sex 
+[read.idat] Fri Sep  8 11:53:25 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R08C01_Red.idat 
+[read.idat] Fri Sep  8 11:53:25 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:25 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:25 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R03C01_Red.idat 
+[read.idat] Fri Sep  8 11:53:25 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R02C01_Red.idat 
+[read.idat] Fri Sep  8 11:53:25 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R06C01_Red.idat 
+[FUN] Fri Sep  8 11:53:26 2023 predicting sex 
+[background.correct] Fri Sep  8 11:53:26 2023 background correction for dye = R 
+[extract.beadnum] Fri Sep  8 11:53:26 2023  
+[read.idat] Fri Sep  8 11:53:26 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:53:26 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R07C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:53:26 2023  
+[background.correct] Fri Sep  8 11:53:26 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:53:27 2023 background correction for dye = R 
+[extract.snp.betas] Fri Sep  8 11:53:27 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:27 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:27 2023  
+[extract.snp.betas] Fri Sep  8 11:53:27 2023  
+[extract.controls] Fri Sep  8 11:53:27 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:27 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:27 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:28 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:28 2023  
+[extract.controls] Fri Sep  8 11:53:28 2023  
+[background.correct] Fri Sep  8 11:53:28 2023 background correction for dye = G 
+[extract.beadnum] Fri Sep  8 11:53:28 2023  
+[extract.detection.pvalues] Fri Sep  8 11:53:28 2023  
+[background.correct] Fri Sep  8 11:53:29 2023 background correction for dye = G 
+[extract.snp.betas] Fri Sep  8 11:53:29 2023  
+[background.correct] Fri Sep  8 11:53:29 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:53:29 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:53:30 2023 background correction for dye = R 
+[extract.controls] Fri Sep  8 11:53:30 2023  
+[extract.beadnum] Fri Sep  8 11:53:30 2023  
+[extract.beadnum] Fri Sep  8 11:53:30 2023  
+[dye.bias.correct] Fri Sep  8 11:53:31 2023  
+[dye.bias.correct] Fri Sep  8 11:53:31 2023  
+[extract.beadnum] Fri Sep  8 11:53:31 2023  
+[extract.beadnum] Fri Sep  8 11:53:31 2023  
+[extract.snp.betas] Fri Sep  8 11:53:31 2023  
+[dye.bias.correct] Fri Sep  8 11:53:31 2023  
+[background.correct] Fri Sep  8 11:53:31 2023 background correction for dye = R 
+[extract.beadnum] Fri Sep  8 11:53:31 2023  
+[background.correct] Fri Sep  8 11:53:32 2023 background correction for dye = G 
+[extract.beadnum] Fri Sep  8 11:53:32 2023  
+[extract.controls] Fri Sep  8 11:53:32 2023  
+[background.correct] Fri Sep  8 11:53:32 2023 background correction for dye = G 
+[extract.beadnum] Fri Sep  8 11:53:32 2023  
+[extract.beadnum] Fri Sep  8 11:53:32 2023  
+[extract.snp.betas] Fri Sep  8 11:53:33 2023  
+[extract.controls] Fri Sep  8 11:53:33 2023  
+[extract.snp.betas] Fri Sep  8 11:53:33 2023  
+[background.correct] Fri Sep  8 11:53:34 2023 background correction for dye = R 
+[dye.bias.correct] Fri Sep  8 11:53:34 2023  
+[extract.controls] Fri Sep  8 11:53:34 2023  
+[extract.snp.betas] Fri Sep  8 11:53:34 2023  
+[extract.snp.betas] Fri Sep  8 11:53:34 2023  
+[background.correct] Fri Sep  8 11:53:35 2023 background correction for dye = G 
+[extract.snp.betas] Fri Sep  8 11:53:35 2023  
+[extract.controls] Fri Sep  8 11:53:35 2023  
+[extract.snp.betas] Fri Sep  8 11:53:35 2023  
+[extract.controls] Fri Sep  8 11:53:35 2023  
+[dye.bias.correct] Fri Sep  8 11:53:35 2023  
+[background.correct] Fri Sep  8 11:53:35 2023 background correction for dye = R 
+[extract.snp.betas] Fri Sep  8 11:53:35 2023  
+[extract.controls] Fri Sep  8 11:53:35 2023  
+[background.correct] Fri Sep  8 11:53:35 2023 background correction for dye = R 
+[extract.controls] Fri Sep  8 11:53:35 2023  
+[extract.snp.betas] Fri Sep  8 11:53:36 2023  
+[background.correct] Fri Sep  8 11:53:36 2023 background correction for dye = G 
+[extract.controls] Fri Sep  8 11:53:36 2023  
+[extract.controls] Fri Sep  8 11:53:36 2023  
+[background.correct] Fri Sep  8 11:53:36 2023 background correction for dye = R 
+[dye.bias.correct] Fri Sep  8 11:53:36 2023  
+[background.correct] Fri Sep  8 11:53:36 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:53:37 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:53:37 2023 background correction for dye = R 
+[FUN] Fri Sep  8 11:53:37 2023 predicting sex 
+[background.correct] Fri Sep  8 11:53:37 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:53:37 2023 background correction for dye = R 
+[background.correct] Fri Sep  8 11:53:38 2023 background correction for dye = G 
+[FUN] Fri Sep  8 11:53:38 2023 predicting sex 
+[background.correct] Fri Sep  8 11:53:38 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:53:38 2023  
+[FUN] Fri Sep  8 11:53:38 2023 predicting sex 
+[background.correct] Fri Sep  8 11:53:38 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:53:38 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:53:39 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:53:39 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:53:39 2023 background correction for dye = G 
+[background.correct] Fri Sep  8 11:53:39 2023 background correction for dye = G 
+[dye.bias.correct] Fri Sep  8 11:53:40 2023  
+[dye.bias.correct] Fri Sep  8 11:53:40 2023  
+[dye.bias.correct] Fri Sep  8 11:53:41 2023  
+[dye.bias.correct] Fri Sep  8 11:53:41 2023  
+[FUN] Fri Sep  8 11:53:41 2023 predicting sex 
+[dye.bias.correct] Fri Sep  8 11:53:41 2023  
+[FUN] Fri Sep  8 11:53:41 2023 predicting sex 
+[dye.bias.correct] Fri Sep  8 11:53:41 2023  
+[dye.bias.correct] Fri Sep  8 11:53:41 2023  
+[dye.bias.correct] Fri Sep  8 11:53:42 2023  
+[FUN] Fri Sep  8 11:53:42 2023 predicting sex 
+[FUN] Fri Sep  8 11:53:46 2023 predicting sex 
+[FUN] Fri Sep  8 11:53:47 2023 predicting sex 
+[FUN] Fri Sep  8 11:53:47 2023 predicting sex 
+[FUN] Fri Sep  8 11:53:48 2023 predicting sex 
+[FUN] Fri Sep  8 11:53:48 2023 predicting sex 
+[FUN] Fri Sep  8 11:53:48 2023 predicting sex 
+[FUN] Fri Sep  8 11:53:48 2023 predicting sex 
+[FUN] Fri Sep  8 11:53:48 2023 predicting sex 
+[FUN] Fri Sep  8 11:53:49 2023 predicting sex 
+Warning messages:
+1: In readChar(con, nchars = n) : truncating string with embedded nuls
+2: In readChar(con, nchars = n) : truncating string with embedded nuls
+> 
+> qc.objects %>%
++ 	write_rds(file = file$qc)
+> 
+> ## ----qc.summary -------------------------------------------------------------
+> qc.summary <- meffil.qc.summary(qc.objects, verbose = param$verbose)
+[meffil.qc.summary] Fri Sep  8 11:53:49 2023 Sex summary TRUE 
+[meffil.qc.summary] Fri Sep  8 11:53:49 2023 Meth vs unmeth summary 
+[meffil.qc.summary] Fri Sep  8 11:53:49 2023 Control means summary 
+[meffil.qc.summary] Fri Sep  8 11:53:49 2023 Sample detection summary 
+[meffil.qc.summary] Fri Sep  8 11:53:54 2023 CpG detection summary 
+[meffil.qc.summary] Fri Sep  8 11:53:55 2023 Sample bead numbers summary 
+[meffil.qc.summary] Fri Sep  8 11:54:01 2023 CpG bead numbers summary 
+[meffil.qc.summary] Fri Sep  8 11:54:02 2023 Cell count summary 
+[meffil.qc.summary] Fri Sep  8 11:54:02 2023 Genotype concordance 
+Warning messages:
+1: `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> = "none")` instead. 
+2: `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> = "none")` instead. 
+3: `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> = "none")` instead. 
+4: `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> = "none")` instead. 
+5: `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> = "none")` instead. 
+> 
+> ## ----qc.report -------------------------------------------------------------
+> sapply(
++ 	list(file$qc.report, 
++ 		file.path(dir$reports, "qc", basename(file$qc.report))),
++ 			function(i){
++ 				meffil.qc.report(
++ 			    qc.summary,
++ 			    output.file = i,
++ 			    author = param$report.author,
++ 			    study = param$report.study)
++ 			}
++ 	)
+[meffil.qc.report] Fri Sep  8 11:54:02 2023 Writing report as html file to /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/releases/2023-09-05/derived/reports/qc/pleural-dnam.qc-report.html 
+
+
+processing file: /data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/qc-report.rmd
+  |                                                                              |                                                                      |   0%  |                                                                              |..                                                                    |   3%
+   inline R code fragments
+
+  |                                                                              |....                                                                  |   5%
+label: unnamed-chunk-1 (with options) 
+List of 1
+ $ results: chr "markup"
+
+  |                                                                              |......                                                                |   8%
+   inline R code fragments
+
+  |                                                                              |.......                                                               |  11%
+label: unnamed-chunk-2
+  |                                                                              |.........                                                             |  13%
+   inline R code fragments
+
+  |                                                                              |...........                                                           |  16%
+label: unnamed-chunk-3 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |.............                                                         |  18%
+   inline R code fragments
+
+  |                                                                              |...............                                                       |  21%
+label: unnamed-chunk-4
+  |                                                                              |.................                                                     |  24%
+  ordinary text without R code
+
+  |                                                                              |..................                                                    |  26%
+label: unnamed-chunk-5 (with options) 
+List of 1
+ $ message: logi FALSE
+
+`geom_smooth()` using method = 'loess' and formula 'y ~ x'
+  |                                                                              |....................                                                  |  29%
+   inline R code fragments
+
+  |                                                                              |......................                                                |  32%
+label: unnamed-chunk-6
+  |                                                                              |........................                                              |  34%
+  ordinary text without R code
+
+  |                                                                              |..........................                                            |  37%
+label: unnamed-chunk-7 (with options) 
+List of 2
+ $ message   : logi FALSE
+ $ fig.height: num 24
+
+  |                                                                              |............................                                          |  39%
+   inline R code fragments
+
+  |                                                                              |.............................                                         |  42%
+label: unnamed-chunk-8
+  |                                                                              |...............................                                       |  45%
+  ordinary text without R code
+
+  |                                                                              |.................................                                     |  47%
+label: unnamed-chunk-9 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |...................................                                   |  50%
+   inline R code fragments
+
+  |                                                                              |.....................................                                 |  53%
+label: unnamed-chunk-10
+  |                                                                              |.......................................                               |  55%
+  ordinary text without R code
+
+  |                                                                              |.........................................                             |  58%
+label: unnamed-chunk-11 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |..........................................                            |  61%
+   inline R code fragments
+
+  |                                                                              |............................................                          |  63%
+label: unnamed-chunk-12 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |..............................................                        |  66%
+   inline R code fragments
+
+  |                                                                              |................................................                      |  68%
+label: unnamed-chunk-13 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |..................................................                    |  71%
+  ordinary text without R code
+
+  |                                                                              |....................................................                  |  74%
+label: unnamed-chunk-14 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |.....................................................                 |  76%
+  ordinary text without R code
+
+  |                                                                              |.......................................................               |  79%
+label: unnamed-chunk-15 (with options) 
+List of 1
+ $ child: chr "/data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd"
+
+
+
+processing file: /data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd
+  |                                                                              |                                                                      |   0%  |                                                                              |......................................................................| 100%
+  ordinary text without R code
+
+
+  |                                                                              |.........................................................             |  82%
+  ordinary text without R code
+
+  |                                                                              |...........................................................           |  84%
+label: unnamed-chunk-16 (with options) 
+List of 1
+ $ message: logi FALSE
+
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+  |                                                                              |.............................................................         |  87%
+  ordinary text without R code
+
+  |                                                                              |...............................................................       |  89%
+label: unnamed-chunk-17 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |................................................................      |  92%
+  ordinary text without R code
+
+  |                                                                              |..................................................................    |  95%
+label: unnamed-chunk-18 (with options) 
+List of 1
+ $ child: chr "/data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd"
+
+
+
+processing file: /data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd
+  |                                                                              |                                                                      |   0%  |                                                                              |......................................................................| 100%
+  ordinary text without R code
+
+
+  |                                                                              |....................................................................  |  97%
+  ordinary text without R code
+
+  |                                                                              |......................................................................| 100%
+label: unnamed-chunk-19 (with options) 
+List of 1
+ $ results: chr "markup"
+
+
+output file: /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/releases/2023-09-05/derived/reports/qc/pleural-dnam.qc-report.md
+
+[meffil.qc.report] Fri Sep  8 11:54:16 2023 Writing report as html file to /projects/MRC-IEU/research/projects/ieu3/p4/004/working/scripts/pleural-dnam/reports/qc/pleural-dnam.qc-report.html 
+
+
+processing file: /data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/qc-report.rmd
+  |                                                                              |                                                                      |   0%  |                                                                              |..                                                                    |   3%
+   inline R code fragments
+
+  |                                                                              |....                                                                  |   5%
+label: unnamed-chunk-1 (with options) 
+List of 1
+ $ results: chr "markup"
+
+  |                                                                              |......                                                                |   8%
+   inline R code fragments
+
+  |                                                                              |.......                                                               |  11%
+label: unnamed-chunk-2
+  |                                                                              |.........                                                             |  13%
+   inline R code fragments
+
+  |                                                                              |...........                                                           |  16%
+label: unnamed-chunk-3 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |.............                                                         |  18%
+   inline R code fragments
+
+  |                                                                              |...............                                                       |  21%
+label: unnamed-chunk-4
+  |                                                                              |.................                                                     |  24%
+  ordinary text without R code
+
+  |                                                                              |..................                                                    |  26%
+label: unnamed-chunk-5 (with options) 
+List of 1
+ $ message: logi FALSE
+
+`geom_smooth()` using method = 'loess' and formula 'y ~ x'
+  |                                                                              |....................                                                  |  29%
+   inline R code fragments
+
+  |                                                                              |......................                                                |  32%
+label: unnamed-chunk-6
+  |                                                                              |........................                                              |  34%
+  ordinary text without R code
+
+  |                                                                              |..........................                                            |  37%
+label: unnamed-chunk-7 (with options) 
+List of 2
+ $ message   : logi FALSE
+ $ fig.height: num 24
+
+  |                                                                              |............................                                          |  39%
+   inline R code fragments
+
+  |                                                                              |.............................                                         |  42%
+label: unnamed-chunk-8
+  |                                                                              |...............................                                       |  45%
+  ordinary text without R code
+
+  |                                                                              |.................................                                     |  47%
+label: unnamed-chunk-9 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |...................................                                   |  50%
+   inline R code fragments
+
+  |                                                                              |.....................................                                 |  53%
+label: unnamed-chunk-10
+  |                                                                              |.......................................                               |  55%
+  ordinary text without R code
+
+  |                                                                              |.........................................                             |  58%
+label: unnamed-chunk-11 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |..........................................                            |  61%
+   inline R code fragments
+
+  |                                                                              |............................................                          |  63%
+label: unnamed-chunk-12 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |..............................................                        |  66%
+   inline R code fragments
+
+  |                                                                              |................................................                      |  68%
+label: unnamed-chunk-13 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |..................................................                    |  71%
+  ordinary text without R code
+
+  |                                                                              |....................................................                  |  74%
+label: unnamed-chunk-14 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |.....................................................                 |  76%
+  ordinary text without R code
+
+  |                                                                              |.......................................................               |  79%
+label: unnamed-chunk-15 (with options) 
+List of 1
+ $ child: chr "/data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd"
+
+
+
+processing file: /data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd
+  |                                                                              |                                                                      |   0%  |                                                                              |......................................................................| 100%
+  ordinary text without R code
+
+
+  |                                                                              |.........................................................             |  82%
+  ordinary text without R code
+
+  |                                                                              |...........................................................           |  84%
+label: unnamed-chunk-16 (with options) 
+List of 1
+ $ message: logi FALSE
+
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+  |                                                                              |.............................................................         |  87%
+  ordinary text without R code
+
+  |                                                                              |...............................................................       |  89%
+label: unnamed-chunk-17 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |................................................................      |  92%
+  ordinary text without R code
+
+  |                                                                              |..................................................................    |  95%
+label: unnamed-chunk-18 (with options) 
+List of 1
+ $ child: chr "/data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd"
+
+
+
+processing file: /data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd
+  |                                                                              |                                                                      |   0%  |                                                                              |......................................................................| 100%
+  ordinary text without R code
+
+
+  |                                                                              |....................................................................  |  97%
+  ordinary text without R code
+
+  |                                                                              |......................................................................| 100%
+label: unnamed-chunk-19 (with options) 
+List of 1
+ $ results: chr "markup"
+
+
+output file: /projects/MRC-IEU/research/projects/ieu3/p4/004/working/scripts/pleural-dnam/reports/qc/pleural-dnam.qc-report.md
+
+[[1]]
+NULL
+
+[[2]]
+NULL
+
+> 
+> ## ----qc.snps -------------------------------------------------------------
+> featureset <- qc.objects[[1]]$featureset
+> writeLines(meffil.snp.names(featureset), con = file$snp)
+> 
+> ## # from https://github.com/perishky/meffil/wiki/Sample-QC
+> ## system("plink --bfile dataset --extract snp-names.txt --recode A --out genotypes")
+> ## 
+> ## genotypes <- meffil.extract.genotypes("genotypes.raw")
+> ## genotypes <- genotypes[,match(samplesheet$Sample_Name, colnames(genotypes))]
+> 
+> ## ----id.bad.samples -------------------------------------------------------------
+> outlier <- qc.summary$bad.samples
+> table(outlier$issue)
+
+Methylated vs Unmethylated          X-Y ratio outlier 
+                         1                          2 
+> index <- outlier$issue %in% c("Control probe (dye.bias)", 
++                               "Methylated vs Unmethylated",
++                               "X-Y ratio outlier",
++                               "Low bead numbers",
++                               "Detection p-value",
++                               "Sex mismatch",
++                               "Genotype mismatch",
++                               "Control probe (bisulfite1)",
++                               "Control probe (bisulfite2)")
+> 
+> outlier <- outlier[index,]
+> outlier
+                            sample.name                      issue
+47                  207563380070_R04C01          X-Y ratio outlier
+207563380118_R07C01 207563380118_R07C01 Methylated vs Unmethylated
+85                  207563380152_R01C01          X-Y ratio outlier
+> length(unique(outlier$sample.name))
+[1] 3
+> 
+> ## ----rm.bad.samples -------------------------------------------------------------
+> length(qc.objects)
+[1] 96
+> qc.objects <- meffil.remove.samples(qc.objects, outlier$sample.name)
+> length(qc.objects)
+[1] 93
+> 
+> file$qc <- str_replace(file$qc,".rds$", ".clean.rds")
+> qc.objects %>%
++ 	write_rds(file = file$qc)
+> 
+> ## ----qc.summary.clean -------------------------------------------------------------
+> qc.summary <- meffil.qc.summary(qc.objects, verbose = param$verbose)
+[meffil.qc.summary] Fri Sep  8 11:54:27 2023 Sex summary TRUE 
+[meffil.qc.summary] Fri Sep  8 11:54:27 2023 Meth vs unmeth summary 
+[meffil.qc.summary] Fri Sep  8 11:54:27 2023 Control means summary 
+[meffil.qc.summary] Fri Sep  8 11:54:27 2023 Sample detection summary 
+[meffil.qc.summary] Fri Sep  8 11:54:31 2023 CpG detection summary 
+[meffil.qc.summary] Fri Sep  8 11:54:33 2023 Sample bead numbers summary 
+[meffil.qc.summary] Fri Sep  8 11:54:37 2023 CpG bead numbers summary 
+[meffil.qc.summary] Fri Sep  8 11:54:38 2023 Cell count summary 
+[meffil.qc.summary] Fri Sep  8 11:54:38 2023 Genotype concordance 
+Warning messages:
+1: `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> = "none")` instead. 
+2: `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> = "none")` instead. 
+3: `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> = "none")` instead. 
+4: `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> = "none")` instead. 
+5: `guides(<scale> = FALSE)` is deprecated. Please use `guides(<scale> = "none")` instead. 
+> 
+> ## ----qc.report.clean -------------------------------------------------------------
+> file$qc.report <- str_replace(file$qc.report,".html$", ".clean.html")
+> sapply(
++ 	list(file$qc.report, 
++ 		file.path(dir$reports, "qc", basename(file$qc.report))),
++ 			function(i){
++ 				meffil.qc.report(
++ 			    qc.summary,
++ 			    output.file = i,
++ 			    author = param$report.author,
++ 			    study = param$report.study)
++ 			}
++ 	)
+[meffil.qc.report] Fri Sep  8 11:54:38 2023 Writing report as html file to /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/releases/2023-09-05/derived/reports/qc/pleural-dnam.qc-report.clean.html 
+
+
+processing file: /data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/qc-report.rmd
+  |                                                                              |                                                                      |   0%  |                                                                              |..                                                                    |   3%
+   inline R code fragments
+
+  |                                                                              |....                                                                  |   5%
+label: unnamed-chunk-1 (with options) 
+List of 1
+ $ results: chr "markup"
+
+  |                                                                              |......                                                                |   8%
+   inline R code fragments
+
+  |                                                                              |.......                                                               |  11%
+label: unnamed-chunk-2
+  |                                                                              |.........                                                             |  13%
+   inline R code fragments
+
+  |                                                                              |...........                                                           |  16%
+label: unnamed-chunk-3 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |.............                                                         |  18%
+   inline R code fragments
+
+  |                                                                              |...............                                                       |  21%
+label: unnamed-chunk-4
+  |                                                                              |.................                                                     |  24%
+  ordinary text without R code
+
+  |                                                                              |..................                                                    |  26%
+label: unnamed-chunk-5 (with options) 
+List of 1
+ $ message: logi FALSE
+
+`geom_smooth()` using method = 'loess' and formula 'y ~ x'
+  |                                                                              |....................                                                  |  29%
+   inline R code fragments
+
+  |                                                                              |......................                                                |  32%
+label: unnamed-chunk-6
+  |                                                                              |........................                                              |  34%
+  ordinary text without R code
+
+  |                                                                              |..........................                                            |  37%
+label: unnamed-chunk-7 (with options) 
+List of 2
+ $ message   : logi FALSE
+ $ fig.height: num 24
+
+  |                                                                              |............................                                          |  39%
+   inline R code fragments
+
+  |                                                                              |.............................                                         |  42%
+label: unnamed-chunk-8
+  |                                                                              |...............................                                       |  45%
+  ordinary text without R code
+
+  |                                                                              |.................................                                     |  47%
+label: unnamed-chunk-9 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |...................................                                   |  50%
+   inline R code fragments
+
+  |                                                                              |.....................................                                 |  53%
+label: unnamed-chunk-10
+  |                                                                              |.......................................                               |  55%
+  ordinary text without R code
+
+  |                                                                              |.........................................                             |  58%
+label: unnamed-chunk-11 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |..........................................                            |  61%
+   inline R code fragments
+
+  |                                                                              |............................................                          |  63%
+label: unnamed-chunk-12 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |..............................................                        |  66%
+   inline R code fragments
+
+  |                                                                              |................................................                      |  68%
+label: unnamed-chunk-13 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |..................................................                    |  71%
+  ordinary text without R code
+
+  |                                                                              |....................................................                  |  74%
+label: unnamed-chunk-14 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |.....................................................                 |  76%
+  ordinary text without R code
+
+  |                                                                              |.......................................................               |  79%
+label: unnamed-chunk-15 (with options) 
+List of 1
+ $ child: chr "/data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd"
+
+
+
+processing file: /data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd
+  |                                                                              |                                                                      |   0%  |                                                                              |......................................................................| 100%
+  ordinary text without R code
+
+
+  |                                                                              |.........................................................             |  82%
+  ordinary text without R code
+
+  |                                                                              |...........................................................           |  84%
+label: unnamed-chunk-16 (with options) 
+List of 1
+ $ message: logi FALSE
+
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+  |                                                                              |.............................................................         |  87%
+  ordinary text without R code
+
+  |                                                                              |...............................................................       |  89%
+label: unnamed-chunk-17 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |................................................................      |  92%
+  ordinary text without R code
+
+  |                                                                              |..................................................................    |  95%
+label: unnamed-chunk-18 (with options) 
+List of 1
+ $ child: chr "/data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd"
+
+
+
+processing file: /data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd
+  |                                                                              |                                                                      |   0%  |                                                                              |......................................................................| 100%
+  ordinary text without R code
+
+
+  |                                                                              |....................................................................  |  97%
+  ordinary text without R code
+
+  |                                                                              |......................................................................| 100%
+label: unnamed-chunk-19 (with options) 
+List of 1
+ $ results: chr "markup"
+
+
+output file: /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/releases/2023-09-05/derived/reports/qc/pleural-dnam.qc-report.clean.md
+
+[meffil.qc.report] Fri Sep  8 11:54:48 2023 Writing report as html file to /projects/MRC-IEU/research/projects/ieu3/p4/004/working/scripts/pleural-dnam/reports/qc/pleural-dnam.qc-report.clean.html 
+
+
+processing file: /data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/qc-report.rmd
+  |                                                                              |                                                                      |   0%  |                                                                              |..                                                                    |   3%
+   inline R code fragments
+
+  |                                                                              |....                                                                  |   5%
+label: unnamed-chunk-1 (with options) 
+List of 1
+ $ results: chr "markup"
+
+  |                                                                              |......                                                                |   8%
+   inline R code fragments
+
+  |                                                                              |.......                                                               |  11%
+label: unnamed-chunk-2
+  |                                                                              |.........                                                             |  13%
+   inline R code fragments
+
+  |                                                                              |...........                                                           |  16%
+label: unnamed-chunk-3 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |.............                                                         |  18%
+   inline R code fragments
+
+  |                                                                              |...............                                                       |  21%
+label: unnamed-chunk-4
+  |                                                                              |.................                                                     |  24%
+  ordinary text without R code
+
+  |                                                                              |..................                                                    |  26%
+label: unnamed-chunk-5 (with options) 
+List of 1
+ $ message: logi FALSE
+
+`geom_smooth()` using method = 'loess' and formula 'y ~ x'
+  |                                                                              |....................                                                  |  29%
+   inline R code fragments
+
+  |                                                                              |......................                                                |  32%
+label: unnamed-chunk-6
+  |                                                                              |........................                                              |  34%
+  ordinary text without R code
+
+  |                                                                              |..........................                                            |  37%
+label: unnamed-chunk-7 (with options) 
+List of 2
+ $ message   : logi FALSE
+ $ fig.height: num 24
+
+  |                                                                              |............................                                          |  39%
+   inline R code fragments
+
+  |                                                                              |.............................                                         |  42%
+label: unnamed-chunk-8
+  |                                                                              |...............................                                       |  45%
+  ordinary text without R code
+
+  |                                                                              |.................................                                     |  47%
+label: unnamed-chunk-9 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |...................................                                   |  50%
+   inline R code fragments
+
+  |                                                                              |.....................................                                 |  53%
+label: unnamed-chunk-10
+  |                                                                              |.......................................                               |  55%
+  ordinary text without R code
+
+  |                                                                              |.........................................                             |  58%
+label: unnamed-chunk-11 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |..........................................                            |  61%
+   inline R code fragments
+
+  |                                                                              |............................................                          |  63%
+label: unnamed-chunk-12 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |..............................................                        |  66%
+   inline R code fragments
+
+  |                                                                              |................................................                      |  68%
+label: unnamed-chunk-13 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |..................................................                    |  71%
+  ordinary text without R code
+
+  |                                                                              |....................................................                  |  74%
+label: unnamed-chunk-14 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |.....................................................                 |  76%
+  ordinary text without R code
+
+  |                                                                              |.......................................................               |  79%
+label: unnamed-chunk-15 (with options) 
+List of 1
+ $ child: chr "/data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd"
+
+
+
+processing file: /data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd
+  |                                                                              |                                                                      |   0%  |                                                                              |......................................................................| 100%
+  ordinary text without R code
+
+
+  |                                                                              |.........................................................             |  82%
+  ordinary text without R code
+
+  |                                                                              |...........................................................           |  84%
+label: unnamed-chunk-16 (with options) 
+List of 1
+ $ message: logi FALSE
+
+`stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+  |                                                                              |.............................................................         |  87%
+  ordinary text without R code
+
+  |                                                                              |...............................................................       |  89%
+label: unnamed-chunk-17 (with options) 
+List of 1
+ $ message: logi FALSE
+
+  |                                                                              |................................................................      |  92%
+  ordinary text without R code
+
+  |                                                                              |..................................................................    |  95%
+label: unnamed-chunk-18 (with options) 
+List of 1
+ $ child: chr "/data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd"
+
+
+
+processing file: /data/py16069/miniconda2/envs/alspac/lib/R/library/meffil/reports/missing.rmd
+  |                                                                              |                                                                      |   0%  |                                                                              |......................................................................| 100%
+  ordinary text without R code
+
+
+  |                                                                              |....................................................................  |  97%
+  ordinary text without R code
+
+  |                                                                              |......................................................................| 100%
+label: unnamed-chunk-19 (with options) 
+List of 1
+ $ results: chr "markup"
+
+
+output file: /projects/MRC-IEU/research/projects/ieu3/p4/004/working/scripts/pleural-dnam/reports/qc/pleural-dnam.qc-report.clean.md
+
+[[1]]
+NULL
+
+[[2]]
+NULL
+
+> 
+> ## ----detection.pvalue -------------------------------------------------------------
+> qc.objects %>% 
++ 	meffil.load.detection.pvalues(verbose = param$verbose) %>%
++ 	write_rds(file = file$detect.p)
+[read.idat] Fri Sep  8 11:54:58 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:54:58 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R01C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:54:58 2023  
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R02C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R03C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R04C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R05C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R06C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R07C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R06C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:06 2023  
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380030/207563380030_R08C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:06 2023  
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R01C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:06 2023  
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R02C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R08C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:06 2023  
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R03C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:06 2023  
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R04C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:06 2023  
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R05C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:06 2023  
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R06C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:06 2023  
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R07C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:06 2023  
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380046/207563380046_R08C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:06 2023  
+[read.idat] Fri Sep  8 11:55:06 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R01C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:07 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:07 2023  
+[extract.detection.pvalues][extract.detection.pvalues][extract.detection.pvalues]   Fri Sep  8 11:55:07 2023Fri Sep  8 11:55:07 2023Fri Sep  8 11:55:07 2023      
+
+
+[extract.detection.pvalues] Fri Sep  8 11:55:07 2023  
+[read.idat] Fri Sep  8 11:55:13 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:13 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R01C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:13 2023  
+[read.idat] Fri Sep  8 11:55:13 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:13 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:13 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:13 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:13 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R06C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:13 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R05C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:13 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R03C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:13 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R05C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:13 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:13 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:14 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:14 2023  
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R02C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R02C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:14 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:14 2023  
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R03C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R08C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380070/207563380070_R07C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R06C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R02C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:14 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:14 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:14 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:14 2023  
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R01C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R04C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:14 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R08C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:14 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:14 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:14 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:14 2023  
+[read.idat] Fri Sep  8 11:55:15 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:15 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380076/207563380076_R07C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:15 2023  
+[read.idat] Fri Sep  8 11:55:17 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:17 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R01C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:17 2023  
+[read.idat] Fri Sep  8 11:55:18 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:18 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R05C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:18 2023  
+[read.idat] Fri Sep  8 11:55:18 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:18 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:18 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:18 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R06C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:18 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R04C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:18 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R05C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:18 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:18 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:18 2023  
+[read.idat] Fri Sep  8 11:55:18 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:18 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:18 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R03C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:18 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R02C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:18 2023  
+[read.idat] Fri Sep  8 11:55:18 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R04C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:18 2023  
+[read.idat] Fri Sep  8 11:55:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R04C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R03C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:19 2023  
+[read.idat] Fri Sep  8 11:55:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R03C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R08C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380082/207563380082_R07C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:19 2023  
+[read.idat] Fri Sep  8 11:55:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R02C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:19 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:19 2023  
+[read.idat] Fri Sep  8 11:55:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R06C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R01C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:19 2023  
+[read.idat] Fri Sep  8 11:55:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R08C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:19 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:19 2023  
+[read.idat] Fri Sep  8 11:55:19 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R08C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:19 2023  
+[read.idat] Fri Sep  8 11:55:20 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:20 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380117/207563380117_R07C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:20 2023  
+[read.idat] Fri Sep  8 11:55:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R02C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:22 2023  
+[read.idat] Fri Sep  8 11:55:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:22 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R06C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:22 2023  
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R03C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R04C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R06C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R05C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:23 2023  
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R05C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:23 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:23 2023  
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R05C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:23 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:23 2023  
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R03C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:23 2023  
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R04C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380118/207563380118_R08C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R02C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:23 2023  
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R01C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R02C01_Red.idat 
+[extract.detection.pvalues][extract.detection.pvalues]  Fri Sep  8 11:55:23 2023Fri Sep  8 11:55:23 2023    
+
+[read.idat] Fri Sep  8 11:55:23 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R03C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:23 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:24 2023  
+[read.idat] Fri Sep  8 11:55:24 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:24 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:24 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R01C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:24 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R07C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:24 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:24 2023  
+[read.idat] Fri Sep  8 11:55:25 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:25 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380126/207563380126_R08C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:25 2023  
+[read.idat] Fri Sep  8 11:55:26 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:26 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R02C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:26 2023  
+[read.idat] Fri Sep  8 11:55:26 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:26 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R06C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:26 2023  
+[read.idat] Fri Sep  8 11:55:27 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:27 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R04C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:27 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R05C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:27 2023  
+[read.idat] Fri Sep  8 11:55:27 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R05C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:27 2023  
+[read.idat] Fri Sep  8 11:55:27 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:27 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R05C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:27 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:27 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R06C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:27 2023  
+[read.idat] Fri Sep  8 11:55:27 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R07C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:27 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R06C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:27 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:27 2023  
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R04C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R04C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R03C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:28 2023  
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380133/207563380133_R08C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R04C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R01C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R03C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R03C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:28 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:28 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:28 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:28 2023  
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R03C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R07C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:28 2023  
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R02C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:28 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R07C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:28 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:28 2023  
+[read.idat] Fri Sep  8 11:55:29 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:29 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380139/207563380139_R08C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:29 2023  
+[read.idat] Fri Sep  8 11:55:30 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R03C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:30 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R03C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:30 2023  
+[read.idat] Fri Sep  8 11:55:30 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:30 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R07C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:30 2023  
+[read.idat] Fri Sep  8 11:55:31 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:31 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R06C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:31 2023  
+[read.idat] Fri Sep  8 11:55:31 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R06C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R06C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:32 2023  
+[read.idat] Fri Sep  8 11:55:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R07C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R08C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R07C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:32 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:32 2023  
+[read.idat] Fri Sep  8 11:55:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R01C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380152/207563380152_R05C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R02C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R01C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R04C01_Grn.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:32 2023  
+[read.idat] Fri Sep  8 11:55:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R02C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:32 2023  
+[read.idat] Fri Sep  8 11:55:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R04C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:32 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:32 2023  
+[read.idat] Fri Sep  8 11:55:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R08C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:32 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R05C01_Grn.idat 
+[read.idat] Fri Sep  8 11:55:33 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R05C01_Red.idat 
+[read.idat] Fri Sep  8 11:55:33 2023 Reading /projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/raw/207563380156/207563380156_R08C01_Red.idat 
+[extract.detection.pvalues] Fri Sep  8 11:55:33 2023  
+[extract.detection.pvalues] Fri Sep  8 11:55:33 2023  
+Warning messages:
+1: In readChar(con, nchars = n) : truncating string with embedded nuls
+2: In readChar(con, nchars = n) : truncating string with embedded nuls
+> 
+> ## ----pc.plot -------------------------------------------------------------
+> y <- meffil.plot.pc.fit(qc.objects)
+[FUN] Fri Sep  8 11:55:47 2023 pcs 1 group 8 
+[FUN] Fri Sep  8 11:55:47 2023 pcs 2 group 10 
+[FUN] Fri Sep  8 11:55:47 2023 pcs 3 group 5 
+[FUN] Fri Sep  8 11:55:47 2023 pcs 4 group 1 
+[FUN] Fri Sep  8 11:55:47 2023 pcs 5 group 5 
+[FUN] Fri Sep  8 11:55:47 2023 pcs 6 group 10 
+[FUN] Fri Sep  8 11:55:47 2023 pcs 1 group 5 
+[FUN] Fri Sep  8 11:55:47 2023 pcs 7 group 2 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 2 group 7 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 8 group 4 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 9 group 10 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 3 group 7 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 4 group 6 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 1 group 9 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 5 group 3 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 2 group 5 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 6 group 4 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 10 group 3 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 7 group 8 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 3 group 2 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 4 group 10 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 1 group 2 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 8 group 8 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 11 group 5 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 5 group 9 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 2 group 2 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 6 group 3[FUN] Fri Sep  8 11:55:48 2023 pcs 7 group 5 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 4 group 7 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 5 group 4 
+ 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 12 group 7 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 3 group 3 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 8 group 5 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 9 group 8 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 1 group 6 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 10 group 2 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 13 group 4 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 11 group 9 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 14 group 2 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 5 group 10 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 8 group 10 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 7 group 7 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 2 group 9 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 9 group 1 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 4 group 9 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 10 group 4 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 3 group 10 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 15 group 4 
+[FUN] Fri Sep  8 11:55:48 2023 pcs 11 group 1 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 1 group 7 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 6 group 6 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 12 group 10 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 9 group 3 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 16 group 3 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 10 group 10 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 8 group 6 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 5 group 2 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 12 group 9 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 11 group 6 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 4 group 2 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 2 group 4 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 7 group 9 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 3 group 9 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 14 group 10 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 13 group 8 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 9 group 7 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 1 group 1 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 10 group 7 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 11 group 3 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 6 group 7 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 8 group 2 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 12 group 2 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 15 group 5 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 4 group 5 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 5 group 7 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 2 group 6 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 10 group 1 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 7 group 1 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 16 group 2 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 11 group 8 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 3 group 4 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 14 group 1 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 6 group 2 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 8 group 7 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 9 group 5 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 13 group 3 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 12 group 5 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 15 group 3 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 4 group 3 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 1 group 3 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 7 group 4 
+[FUN] Fri Sep  8 11:55:49 2023 pcs 5 group 6 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 16 group 7 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 3 group 6 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 11 group 7 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 10 group 6 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 2 group 1 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 15 group 8 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 14 group 8 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 4 group 4 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 8 group 9 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 1 group 10 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 5 group 1 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 6 group 1 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 13 group 7 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 7 group 10 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 9 group 6 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 16 group 4 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 12 group 4 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 8 group 3 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 4 group 8 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 15 group 2 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 14 group 4 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 5 group 8 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 1 group 4 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 7 group 3 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 10 group 5 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 2 group 3 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 6 group 8 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 12 group 1 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 11 group 10 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 13 group 5 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 16 group 5 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 3 group 8 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 8 group 1 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 9 group 2 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 7 group 6 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 15 group 1 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 21 group 3 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 14 group 7 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 17 group 7 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 10 group 9 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 11 group 2 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 20 group 10 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 2 group 8 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 12 group 8 
+[FUN] Fri Sep  8 11:55:50 2023 pcs 23 group 4 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 3 group 1 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 6 group 9 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 9 group 4 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 14 group 5 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 24 group 4 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 16 group 10 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 15 group 6 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 21 group 1 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 10 group 8 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 17 group 1 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 11 group 4 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 13 group 2 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 23 group 5 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 20 group 1 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 14 group 9 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 12 group 6 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 17 group 8 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 18 group 2 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 24 group 2 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 16 group 1 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 19 group 1 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 9 group 9 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 27 group 7 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 23 group 2 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 15 group 7 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 6 group 5 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 26 group 10 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 21 group 2 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 14 group 3 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 13 group 6 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 23 group 9 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 12 group 3 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 20 group 4 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 17 group 2 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 25 group 5 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 16 group 8 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 22 group 6 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 15 group 10 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 27 group 9 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 19 group 7 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 18 group 8 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 14 group 6 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 24 group 10 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 26 group 8 
+[FUN] Fri Sep  8 11:55:51 2023 pcs 28 group 8 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 13 group 10 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 15 group 9 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 25 group 10 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 18 group 6 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 22 group 2 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 17 group 5 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 27 group 5 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 23 group 3 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 30 group 8 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 16 group 6 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 20 group 9 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 21 group 7 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 19 group 3 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 24 group 1 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 26 group 9 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 22 group 7 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 25 group 2 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 20 group 6 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 28 group 2 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 31 group 10 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 27 group 6 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 13 group 9 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 30 group 6 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 18 group 1 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 23 group 10 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 21 group 6 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 16 group 9 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 22 group 5 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 31 group 7 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 19 group 6 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 30 group 3 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 26 group 2 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 17 group 10 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 24 group 3 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 20 group 2 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 23 group 1 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 13 group 1 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 27 group 4 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 18 group 4 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 21 group 8 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 25 group 4 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 28 group 7 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 32 group 3 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 22 group 10 
+[FUN] Fri Sep  8 11:55:52 2023 pcs 30 group 9 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 17 group 3 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 27 group 3 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 31 group 9 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 19 group 4 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 29 group 10 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 26 group 3 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 25 group 7 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 28 group 5 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 20 group 5 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 24 group 5 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 21 group 10 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 23 group 8 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 22 group 3 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 30 group 10 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 27 group 2 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 20 group 7 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 17 group 4 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 18 group 3 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 32 group 2 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 19 group 2 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 24 group 6 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 31 group 2 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 28 group 9 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 25 group 9 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 21 group 4 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 29 group 5 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 26 group 5 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 30 group 1 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 32 group 8 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 24 group 9 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 27 group 8 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 18 group 9 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 31 group 8 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 28 group 6 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 19 group 10 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 22 group 9 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 25 group 8 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 32 group 4 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 26 group 6 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 29 group 3 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 30 group 7 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 19 group 8 
+[FUN] Fri Sep  8 11:55:53 2023 pcs 28 group 1 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 18 group 10 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 32 group 5 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 31 group 1 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 25 group 3 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 22 group 1 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 17 group 6 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 29 group 2 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 32 group 6 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 28 group 10 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 30 group 5 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 26 group 4 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 17 group 9 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 32 group 1 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 31 group 3 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 29 group 4 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 23 group 7 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 33 group 10 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 20 group 3 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 29 group 7 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 31 group 6 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 32 group 7 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 27 group 1 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 23 group 6 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 29 group 1 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 33 group 6 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 20 group 8 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 30 group 4 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 21 group 9 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 25 group 6 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 29 group 9 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 27 group 10 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 24 group 8 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 39 group 3 
+[FUN] Fri Sep  8 11:55:54 2023 pcs 30 group 2 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 33 group 1 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 36 group 8 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 25 group 1 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 21 group 5 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 19 group 9 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 26 group 7 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 24 group 7 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 18 group 5 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 39 group 7 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 33 group 8 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 19 group 5 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 36 group 10 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 37 group 4 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 26 group 1 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 41 group 5 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 40 group 2 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 22 group 4 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 39 group 4 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 28 group 3 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 33 group 5 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 36 group 3 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 18 group 7 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 35 group 10 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 40 group 1 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 42 group 3 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 37 group 9 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 31 group 5 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 41 group 3 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 33 group 2 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 22 group 8 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 42 group 8 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 37 group 3 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 36 group 7 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 39 group 10 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 34 group 7 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 35 group 7 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 28 group 4 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 40 group 3 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 32 group 10 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 29 group 6 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 38 group 7 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 34 group 4 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 37 group 7 
+[FUN] Fri Sep  8 11:55:55 2023 pcs 36 group 2 
+[FUN] Fri Sep  8 11:55:56 2023[FUN]  pcsFri Sep  8 11:55:56 2023  42pcs  group31  1group  
+4 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 35 group 6 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 33 group 3 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 41 group 8 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 32 group 9 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 38 group 9 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 39 group 8 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 29 group 8 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 34 group 10 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 37 group 8 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 40 group 5 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 42 group 9 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 33 group 7 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 36 group 9 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 41 group 4 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 35 group 4 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 38 group 10 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 34 group 2 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 42 group 4 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 41 group 9 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 37 group 1 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 35 group 8 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 40 group 6 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 36 group 1 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 33 group 9 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 39 group 5 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 34 group 8 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 36 group 6 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 41 group 2 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 38 group 5 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 35 group 3 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 40 group 10 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 37 group 2 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 39 group 2 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 42 group 5 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 36 group 4 
+[FUN] Fri Sep  8 11:55:56 2023 pcs 33 group 4 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 34 group 1 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 42 group 7 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 40 group 4 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 36 group 5 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 35 group 2 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 37 group 6 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 38 group 2 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 39 group 6 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 41 group 10 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 42 group 10 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 38 group 4 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 41 group 1 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 40 group 8 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 35 group 9 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 39 group 9 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 38 group 3 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 34 group 3 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 37 group 10 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 42 group 6 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 41 group 7 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 39 group 1 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 40 group 7 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 35 group 5 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 34 group 9 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 42 group 2 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 41 group 6 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 35 group 1 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 38 group 6 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 37 group 5 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 40 group 9 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 34 group 6 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 38 group 8 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 34 group 5 
+[FUN] Fri Sep  8 11:55:57 2023 pcs 38 group 1 
+> 
+> sapply(
++ 	list(file$pc.fit.plot, 
++ 		file.path(dir$reports, "qc", basename(file$pc.fit.plot))),
++ 			function(i){
++ 				ggsave(y$plot, 
++ 					filename = i, 
++ 					height = 6, 
++ 					width = 6)
++ 			}
++ 	)
+[1] "/projects/MRC-IEU/research/projects/ieu3/p4/004/working/data/pleural-dnam/releases/2023-09-05/derived/reports/qc/pleural-dnam.pc.fit.pdf"
+[2] "/projects/MRC-IEU/research/projects/ieu3/p4/004/working/scripts/pleural-dnam/reports/qc/pleural-dnam.pc.fit.pdf"                         
+> 
+> ## ----norm -------------------------------------------------------------
+> norm.objects <- meffil.normalize.quantiles(
++     qc.objects,
++     number.pcs=pc, # set to 20 @top by visual inspection of pc plot
++     verbose = param$verbose)
+Error in stopifnot(number.pcs >= 1) : object 'pc' not found
+Calls: meffil.normalize.quantiles -> stopifnot
+Execution halted
