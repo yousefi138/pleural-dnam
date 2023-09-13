@@ -2,9 +2,9 @@
 
 ## ----globals -------------------------------------------------------------
 # conda activate alspac
-# R CMD BATCH --vanilla 'pleural-dnam-prep-release-2023-09-05.r' &
+# R CMD BATCH --vanilla 'pleural-dnam-pilot-prep-release-2023-09-05.r' &
 ################################################################################
-# File: pleural-dnam-prep-release-2023-09-05.r
+# File: pleural-dnam-pilot-prep-release-2023-09-05.r
 # Purpose: 
 #   
 # Created: 
@@ -20,11 +20,10 @@ packageVersion("meffil")
 ## ----dirs -------------------------------------------------------------
 dir <- list()
 dir$project = '/projects/MRC-IEU/research/projects/ieu3/p4/004/working'
-dir$data <- file.path(dir$project, 'data/pleural-dnam/raw')
-dir$scripts <- file.path(dir$project, 'scripts/pleural-dnam')
-dir$out <- file.path(dir$project, 'data/pleural-dnam/releases/2023-09-05')
-dir$reports <- file.path(dir$scripts, 'reports')
-dir$samplesheet <- file.path(dir$scripts, 'samplesheet')
+dir$data <- file.path(dir$project, 'data/pleural-dnam-pilot/raw')
+dir$out <- file.path(dir$project, 'data/pleural-dnam-pilot/releases/2023-09-14')
+dir$scripts <- file.path(dir$project, 'scripts/pleural-dnam-pilot')
+dir$reports <- file.path(dir$project, 'scripts/pleural-dnam-pilot/reports')
 
 lapply(dir, function(i) {
 	if (!dir.exists(i))
@@ -36,28 +35,28 @@ lapply(dir, function(i) {
 ## ----files -------------------------------------------------------------
 file <- list()
 file$samplesheet <- file.path(dir$out, 
-						"samplesheet/pleural-dnam.samplesheet.csv")
+						"samplesheet/pleural-dnam-pilot.samplesheet.csv")
 
-file$qc <- file.path(dir$out, "qc_objects/pleural-dnam.qc.objects.rds")
+file$qc <- file.path(dir$out, "qc_objects/pleural-dnam-pilot.qc.objects.rds")
 
 file$qc.report <- file.path(dir$out, 
-					"derived/reports/qc/pleural-dnam.qc-report.html")
+					"derived/reports/qc/pleural-dnam-pilot.qc-report.html")
 
 file$snp <- file.path(dir$out, "qc_snps/snp-names.txt")
 
 file$detect.p <- file.path(dir$out, 
-					"detection_p_values/pleural-dnam.detection_p_values.rds")
+					"detection_p_values/pleural-dnam-pilot.detection_p_values.rds")
 
 file$pc.fit.plot <- file.path(dir$out, 
-					"derived/reports/qc/pleural-dnam.pc.fit.pdf")
+					"derived/reports/qc/pleural-dnam-pilot.pc.fit.pdf")
 
-file$norm <- file.path(dir$out, "norm_objects/pleural-dnam.norm.objects.rds")
+file$norm <- file.path(dir$out, "norm_objects/pleural-dnam-pilot.norm.objects.rds")
 
-file$betas <- file.path(dir$out, "betas/pleural-dnam.betas.rds")
+file$betas <- file.path(dir$out, "betas/pleural-dnam-pilot.betas.rds")
 
 file$norm.report <- 
 		file.path(dir$out, 
-			"derived/reports/normalization/pleural-dnam.normalization-report.html")
+			"derived/reports/normalization/pleural-dnam-pilot.normalization-report.html")
 
 #file$cellcount <- 
 
@@ -75,7 +74,7 @@ file %>%
 param <- list()
 param$verbose <- TRUE  
 param$report.author <- "Paul Yousefi"
-param$report.study <- "pleural-dnam"
+param$report.study <- "pleural-dnam-pilot"
 param$pc <- 10
 
 ## ----samplesheet -------------------------------------------------------------
