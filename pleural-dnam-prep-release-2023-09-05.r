@@ -24,6 +24,7 @@ dir$data <- file.path(dir$project, 'data/pleural-dnam/raw')
 dir$scripts <- file.path(dir$project, 'scripts/pleural-dnam')
 dir$out <- file.path(dir$project, 'data/pleural-dnam/releases/2023-09-05')
 dir$reports <- file.path(dir$scripts, 'reports')
+dir$samplesheet <- file.path(dir$scripts, 'samplesheet')
 
 lapply(dir, function(i) {
 	if (!dir.exists(i))
@@ -84,8 +85,14 @@ bbl.samplesheet <- read_xlsx(file.path(dir$data, "Sentrix_link.xlsx"))
 samplesheet <- meffil.samplesheet %>% 
 				inner_join(bbl.samplesheet, by = c("Sample_Name" = "sentrix")) 
 
-samplesheet %>%
-	write_csv(file = file$samplesheet)
+sapply(
+	list(file$samplesheet,
+		file.path(dir$samplesheet, basename(file$samplesheet)) ),
+			function(i){
+				samplesheet %>% 
+					write_csv(file = i)
+		}
+	)
 
 ## ----qc -------------------------------------------------------------
 meffil.list.cell.type.references()
