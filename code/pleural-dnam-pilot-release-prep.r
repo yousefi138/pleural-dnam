@@ -2,9 +2,9 @@
 
 ## ----globals -------------------------------------------------------------
 # conda activate alspac
-# R CMD BATCH --vanilla 'pleural-dnam-pilot-prep-release-2023-09-05.r' &
+# R CMD BATCH --vanilla 'pleural-dnam-pilot-release-prep.r' &
 ################################################################################
-# File: pleural-dnam-pilot-prep-release-2023-09-05.r
+# File: pleural-dnam-pilot-release-prep.r
 # Purpose: 
 #   
 # Created: 
