@@ -80,19 +80,20 @@ param$pc <- 10
 
 ## ----samplesheet -------------------------------------------------------------
 meffil.samplesheet <- meffil.create.samplesheet(dir$data, recursive=TRUE)
-bbl.samplesheet <- read_xlsx(file.path(dir$data, "Sentrix_link.xlsx"))
+bbl.samplesheet <- read_xlsx(file.path(dir$data, "Sentrix_link-ids-fixed.xlsx"))
+uob.aru.samplesheet <- read_csv(file.path(dir$data, 
+						"20230419-uob-aru-plueral-fluids-cleaned.csv"))
 
 samplesheet <- meffil.samplesheet %>% 
-				inner_join(bbl.samplesheet, by = c("Sample_Name" = "sentrix")) 
+				inner_join(bbl.samplesheet, by = c("Sample_Name" = "sentrix")) %>%
+				left_join(uob.aru.samplesheet, by = c("ID" = "aru.id")) 
+				
+## check the ids match
+samplesheet$ID[!samplesheet$ID %in% uob.aru.samplesheet$aru.id]
+uob.aru.samplesheet$aru.id[!uob.aru.samplesheet$aru.id %in% samplesheet$ID]
 
-sapply(
-	list(file$samplesheet,
-		file.path(dir$samplesheet, basename(file$samplesheet)) ),
-			function(i){
-				samplesheet %>% 
-					write_csv(file = i)
-		}
-	)
+samplesheet %>% 
+	write_csv(file = file$samplesheet)
 
 ## ----qc -------------------------------------------------------------
 meffil.list.cell.type.references()
