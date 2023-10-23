@@ -77,6 +77,9 @@ param$report.author <- "Paul Yousefi"
 param$report.study <- "pleural-dnam-pilot"
 param$pc <- 10
 
+run <- list()
+run$qc <- FALSE
+
 ## ----samplesheet -------------------------------------------------------------
 meffil.samplesheet <- meffil.create.samplesheet(dir$data, recursive=TRUE)
 bbl.samplesheet <- read_xlsx(file.path(dir$data, "Sentrix_link-ids-fixed.xlsx"))
@@ -110,12 +113,17 @@ meffil.list.cell.type.references()
 ##	 [5] "blood gse35069 complete"         "blood idoloptimized"
 ##	 [7] "blood idoloptimized epic"     
 
-qc.objects <- meffil.qc(samplesheet, 
-				cell.type.reference = NA, 
-				verbose = param$verbose)
+if(run$qc){
+	qc.objects <- meffil.qc(samplesheet, 
+					cell.type.reference = NA, 
+					verbose = param$verbose)	
 
-qc.objects %>%
+	qc.objects %>%
 	write_rds(file = file$qc)
+
+} else {
+	qc.objects <- read_rds(file = file$qc)
+}
 
 ## ----qc.summary -------------------------------------------------------------
 qc.summary <- meffil.qc.summary(qc.objects, verbose = param$verbose)
@@ -165,9 +173,16 @@ length(qc.objects)
 qc.objects <- meffil.remove.samples(qc.objects, outlier$sample.name)
 length(qc.objects)
 
+samplesheet <- samplesheet %>%
+				filter(!Sample_Name %in% outlier$sample.name)
+
 file$qc <- str_replace(file$qc,".rds$", ".clean.rds")
 qc.objects %>%
 	write_rds(file = file$qc)
+
+file$samplesheet <- str_replace(file$samplesheet,".csv$", ".clean.csv")
+samplesheet %>%
+	write_csv(file = file$samplesheet)
 
 ## ----qc.summary.clean -------------------------------------------------------------
 qc.summary <- meffil.qc.summary(qc.objects, verbose = param$verbose)
